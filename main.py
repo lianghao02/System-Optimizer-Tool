@@ -611,17 +611,89 @@ class BootOptimizerEngine:
         return f"應用程式 ({name_no_ext})", f"開機跟隨 Windows 啟動之程式：{name_no_ext}"
 
     @staticmethod
+    def open_startup_folder(scope="user"):
+        """開啟本機 Startup 開機啟動資料夾 (shell:startup 或 shell:common startup)"""
+        try:
+            if scope == "common":
+                folder = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+            else:
+                folder = os.path.join(CONFIG.USER_HOME, "AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+            
+            if not os.path.exists(folder):
+                os.makedirs(folder, exist_ok=True)
+            
+            os.startfile(folder)
+            return True, f"已成功開啟 [{scope}] 啟動資料夾: {folder}"
+        except Exception as e:
+            return False, f"開啟資料夾失敗: {str(e)}"
+
+    @staticmethod
+    def is_driver_or_system_item(raw_name, cmd_str):
+        """辨識是否為核心系統、顯示卡、音效卡或硬體驅動關鍵項目 (NVIDIA, Realtek, Intel, Defender 等)"""
+        driver_keys = [
+            "nvidia", "realtek", "intel", "amd", "radeon", "asus", "msi", 
+            "lenovo", "dell", "hp", "synaptics", "logitech", "defend", "security",
+            "windows", "system32", "svchost", "ctfmon"
+        ]
+        combined = (str(raw_name) + " " + str(cmd_str)).lower()
+        return any(k in combined for k in driver_keys)
+
+    @staticmethod
+    def backup_and_delete_shortcut(item):
+        """安全將 Startup 資料夾之捷徑檔 (.lnk) 移至 LocalAppData 安全備份垃圾桶"""
+        try:
+            src = item["command"]
+            if not os.path.exists(src):
+                return False, "目標捷徑檔案不存在或已被刪除"
+            
+            backup_dir = os.path.join(CONFIG.USER_HOME, "AppData", "Local", "SystemOptimizerTool", "backup_shortcuts")
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            file_name = os.path.basename(src)
+            dst = os.path.join(backup_dir, file_name)
+            
+            if os.path.exists(dst):
+                try: os.remove(dst)
+                except: pass
+                
+            shutil.move(src, dst)
+            return True, f"已安全將捷徑 [{item['friendly_name']}] 移至備份垃圾桶！"
+        except Exception as e:
+            return False, f"備份刪除捷徑失敗: {str(e)}"
+
+    @staticmethod
+    def restore_shortcut_from_backup(file_name, target_scope="user"):
+        """從備份垃圾桶復原 Shortcut 捷徑"""
+        try:
+            backup_dir = os.path.join(CONFIG.USER_HOME, "AppData", "Local", "SystemOptimizerTool", "backup_shortcuts")
+            src = os.path.join(backup_dir, file_name)
+            if not os.path.exists(src):
+                return False, "備份捷徑檔案不存在"
+            
+            if target_scope == "common":
+                dst_dir = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+            else:
+                dst_dir = os.path.join(CONFIG.USER_HOME, "AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+            
+            os.makedirs(dst_dir, exist_ok=True)
+            dst = os.path.join(dst_dir, file_name)
+            shutil.move(src, dst)
+            return True, f"已將捷徑 [{file_name}] 成功復原至啟動資料夾！"
+        except Exception as e:
+            return False, f"復原捷徑失敗: {str(e)}"
+
+    @staticmethod
     def get_system_startup_programs():
-        """盤點 Registry (Run/RunDisabled)、Startup 資料夾與 Windows 工作排程器 (Schtasks) 項目"""
+        """盤點雙層 Registry (Run/RunDisabled)、個人/全機 Startup 資料夾與 Windows 工作排程器 (Schtasks) 項目"""
         items = []
         system_high_impact = ["steam", "epic", "discord", "spotify", "onedrive", "chrome", "edge", "update", "lenovo"]
 
-        # 1. 讀取 Registry (包含啟用與已停用鍵)
+        # 1. 讀取 Registry (包含個人與本機系統鍵)
         reg_paths = [
             (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", "當前使用者 Registry", True),
             (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\RunDisabled", "當前使用者 Registry (已停用)", False),
-            (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Run", "本機系統 Registry", True),
-            (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\RunDisabled", "本機系統 Registry (已停用)", False)
+            (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Run", "全機系統 Registry", True),
+            (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\RunDisabled", "全機系統 Registry (已停用)", False)
         ]
 
         for hkey, subkey, loc_name, is_enabled in reg_paths:
@@ -634,6 +706,7 @@ class BootOptimizerEngine:
                         val_str = str(val).strip()
                         friendly_name, friendly_desc = BootOptimizerEngine.resolve_friendly_name_and_description(name, val_str)
                         impact = "🔴 高影響" if any(k in name.lower() or k in val_str.lower() for k in system_high_impact) else "🟡 中影響"
+                        is_sys_driver = BootOptimizerEngine.is_driver_or_system_item(name, val_str)
                         items.append({
                             "type": "registry",
                             "raw_name": name,
@@ -643,6 +716,7 @@ class BootOptimizerEngine:
                             "location": loc_name,
                             "impact": impact,
                             "enabled": is_enabled,
+                            "is_sys_driver": is_sys_driver,
                             "hkey": hkey,
                             "subkey": subkey
                         })
@@ -650,28 +724,36 @@ class BootOptimizerEngine:
                 winreg.CloseKey(key)
             except: pass
 
-        # 2. 讀取 Startup 資料夾 (.lnk / .disabled)
-        user_startup = os.path.join(CONFIG.USER_HOME, "AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
-        if os.path.exists(user_startup):
-            try:
-                for f in os.listdir(user_startup):
-                    if f.lower().endswith('.lnk') or f.lower().endswith('.exe') or f.lower().endswith('.bat') or f.lower().endswith('.disabled'):
-                        full_p = os.path.join(user_startup, f)
-                        is_enabled = not f.lower().endswith('.disabled')
-                        clean_fn = f.replace('.disabled', '')
-                        friendly_name, friendly_desc = BootOptimizerEngine.resolve_friendly_name_and_description(clean_fn, full_p)
-                        impact = "🔴 高影響" if any(k in f.lower() for k in system_high_impact) else "🟢 低影響"
-                        items.append({
-                            "type": "file",
-                            "raw_name": f,
-                            "friendly_name": friendly_name,
-                            "description": friendly_desc,
-                            "command": full_p,
-                            "location": "使用者 Startup 資料夾",
-                            "impact": impact,
-                            "enabled": is_enabled
-                        })
-            except: pass
+        # 2. 讀取雙層 Startup 資料夾 (個人與全機所有使用者)
+        startup_dirs = [
+            ("個人 Startup 資料夾 (shell:startup)", os.path.join(CONFIG.USER_HOME, "AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Startup"), "user"),
+            ("全機共用 Startup 資料夾 (shell:common startup)", r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp", "common")
+        ]
+
+        for loc_name, st_path, scope in startup_dirs:
+            if os.path.exists(st_path):
+                try:
+                    for f in os.listdir(st_path):
+                        if f.lower().endswith('.lnk') or f.lower().endswith('.exe') or f.lower().endswith('.bat') or f.lower().endswith('.disabled'):
+                            full_p = os.path.join(st_path, f)
+                            is_enabled = not f.lower().endswith('.disabled')
+                            clean_fn = f.replace('.disabled', '')
+                            friendly_name, friendly_desc = BootOptimizerEngine.resolve_friendly_name_and_description(clean_fn, full_p)
+                            impact = "🔴 高影響" if any(k in f.lower() for k in system_high_impact) else "🟢 低影響"
+                            is_sys_driver = BootOptimizerEngine.is_driver_or_system_item(f, full_p)
+                            items.append({
+                                "type": "file",
+                                "raw_name": f,
+                                "friendly_name": friendly_name,
+                                "description": friendly_desc,
+                                "command": full_p,
+                                "location": loc_name,
+                                "scope": scope,
+                                "impact": impact,
+                                "is_sys_driver": is_sys_driver,
+                                "enabled": is_enabled
+                            })
+                except: pass
 
         # 3. 讀取 Windows 工作排程器 (schtasks)
         try:
@@ -692,6 +774,7 @@ class BootOptimizerEngine:
                         if task_name and not task_name.startswith("\\Microsoft\\Windows\\"):
                             friendly_name, friendly_desc = BootOptimizerEngine.resolve_friendly_name_and_description(os.path.basename(task_name), cmd)
                             is_enabled = (status.lower() != "disabled" and status != "已停用")
+                            is_sys_driver = BootOptimizerEngine.is_driver_or_system_item(task_name, cmd)
                             items.append({
                                 "type": "task",
                                 "raw_name": task_name,
@@ -700,6 +783,7 @@ class BootOptimizerEngine:
                                 "command": cmd if cmd else "工作排程觸發指令",
                                 "location": "Windows 工作排程器",
                                 "impact": "🟡 中影響",
+                                "is_sys_driver": is_sys_driver,
                                 "enabled": is_enabled
                             })
         except: pass
@@ -1318,7 +1402,7 @@ class SystemOptimizerApp(ctk.CTk):
             self.log_display.tag_config(color, foreground=color)
 
     # --------------------------------------------------------------------------
-    # 分頁 2：🚀 開機加速與工作排程 (Page Boot - 關閉/開啟動態控制版)
+    # 分頁 2：🚀 開機加速與工作排程 (Page Boot - 雙層 Startup 直覺管理與軟性防衛版)
     # --------------------------------------------------------------------------
     def build_page_boot(self):
         page = ctk.CTkFrame(self.page_container, fg_color="transparent")
@@ -1330,25 +1414,44 @@ class SystemOptimizerApp(ctk.CTk):
         uptime_text = BootOptimizerEngine.get_last_boot_time_str()
         ctk.CTkLabel(card_uptime, text=f"📊 開機健康度監測：{uptime_text}", font=self.title_font, text_color=CONFIG.THEME["SUCCESS"]).pack(side="left", padx=15, pady=12)
 
-        btn_add_script = ctk.CTkButton(
-            card_uptime, text="➕ 新增開機自動執行的軟體或腳本", font=ctk.CTkFont(family="Microsoft JhengHei", size=12, weight="bold"),
-            fg_color=CONFIG.THEME["PRIMARY"], command=self._open_add_script_modal
+        # 頂部一鍵直達 Startup 資料夾快捷按鈕列
+        frame_quick_folders = ctk.CTkFrame(card_uptime, fg_color="transparent")
+        frame_quick_folders.pack(side="right", padx=10, pady=8)
+
+        btn_open_user_st = ctk.CTkButton(
+            frame_quick_folders, text="📂 開啟【個人】啟動資料夾", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            fg_color=CONFIG.THEME["PRIMARY"], hover_color=CONFIG.THEME["PRIMARY_HOVER"], width=170,
+            command=lambda: self._open_startup_dir("user")
         )
-        btn_add_script.pack(side="right", padx=15, pady=10)
+        btn_open_user_st.pack(side="left", padx=4)
+
+        btn_open_common_st = ctk.CTkButton(
+            frame_quick_folders, text="📂 開啟【全機共用】啟動資料夾", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            fg_color=CONFIG.THEME["ACCENT"], hover_color="#8B5CF6", width=190,
+            command=lambda: self._open_startup_dir("common")
+        )
+        btn_open_common_st.pack(side="left", padx=4)
+
+        btn_add_script = ctk.CTkButton(
+            frame_quick_folders, text="➕ 新增自訂延遲腳本", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            fg_color=CONFIG.THEME["SUCCESS"], hover_color=CONFIG.THEME["SUCCESS_HOVER"], width=150,
+            command=self._open_add_script_modal
+        )
+        btn_add_script.pack(side="left", padx=4)
 
         scroll_boot = ctk.CTkScrollableFrame(page, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10)
         scroll_boot.pack(fill="both", expand=True)
 
-        ctk.CTkLabel(scroll_boot, text="⚙️ Windows 開機啟動項管理 (可勾選後批次停用)", font=self.title_font, text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=15, pady=(12, 4))
-        ctk.CTkLabel(scroll_boot, text="💡 提示：本區包含登錄檔 (Registry) 與 Startup 資料夾的開機自動啟動項目。勾選多個項目後，可一次批次停用；停用後項目保留在清單，隨時可再還原。", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=15, pady=(0, 6))
+        ctk.CTkLabel(scroll_boot, text="⚙️ Windows 開機啟動項管理 (直覺分區與軍規軟性防禦)", font=self.title_font, text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=15, pady=(12, 4))
+        ctk.CTkLabel(scroll_boot, text="💡 提示：本區分為【Startup 捷徑】、【登錄檔 Run 鍵值】與【工作排程器】三大直覺區塊。Startup 捷徑可安全備份刪除；登錄檔與排程器提供「軟性停用/開啟」，絕不安裝或硬刪除系統關鍵項目。", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=15, pady=(0, 6))
 
-        # 篩選控制列
+        # 篩選與批次控制列
         filter_bar = ctk.CTkFrame(scroll_boot, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=8)
         filter_bar.pack(fill="x", padx=15, pady=(0, 8))
 
         chk_show_tasks = ctk.CTkCheckBox(
             filter_bar,
-            text="📅 同時顯示工作排程器任務 (通常為系統背景更新，一般不需關閉)",
+            text="📅 同時顯示工作排程器任務 (系統背景自動更新，一般不需變動)",
             variable=self.var_show_tasks,
             font=self.default_font,
             text_color=CONFIG.THEME["TEXT_MUTED"],
@@ -1358,11 +1461,11 @@ class SystemOptimizerApp(ctk.CTk):
 
         self.btn_batch_disable = ctk.CTkButton(
             filter_bar,
-            text="🚫 批次停用所有勾選的開機啟動項",
+            text="🚫 批次停用勾選項目",
             font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
             fg_color=CONFIG.THEME["DANGER"],
             hover_color="#C0392B",
-            width=220,
+            width=160,
             command=self._batch_disable_checked_items
         )
         self.btn_batch_disable.pack(side="right", padx=12, pady=8)
@@ -1380,6 +1483,11 @@ class SystemOptimizerApp(ctk.CTk):
         self.after(300, self.load_system_startup_list)
         self.refresh_custom_script_list()
 
+    def _open_startup_dir(self, scope):
+        ok, msg = BootOptimizerEngine.open_startup_folder(scope)
+        if not ok:
+            messagebox.showerror("開啟失敗", msg)
+
     def load_system_startup_list(self):
         for widget in self.frame_sys_startup_list.winfo_children(): widget.destroy()
 
@@ -1393,7 +1501,6 @@ class SystemOptimizerApp(ctk.CTk):
         self.startup_check_vars.clear()
         self.startup_items_cache = sys_items
 
-        # 依照「顯示工作排程器」開關過濾項目
         show_tasks = self.var_show_tasks.get()
         visible_items = [it for it in sys_items if show_tasks or it["type"] != "task"]
 
@@ -1405,75 +1512,132 @@ class SystemOptimizerApp(ctk.CTk):
             ).pack(anchor="w", pady=8)
             return
 
-        # 若有工作排程器任務但預設隱藏，給使用者提示
-        task_count = sum(1 for it in sys_items if it["type"] == "task")
-        if not show_tasks and task_count > 0:
-            ctk.CTkLabel(
-                self.frame_sys_startup_list,
-                text=f"📅 另有 {task_count} 個工作排程器任務（通常為系統背景自動更新任務，一般無需關閉）。勾選上方「同時顯示工作排程器任務」可展開檢視。",
-                font=ctk.CTkFont(family="Microsoft JhengHei", size=11), text_color=CONFIG.THEME["TEXT_MUTED"]
-            ).pack(anchor="w", padx=5, pady=(0, 6))
+        # 將項目按「Startup 捷徑區」、「登錄檔 Run 區」與「工作排程器區」進行分區
+        file_items = [it for it in visible_items if it["type"] == "file"]
+        reg_items = [it for it in visible_items if it["type"] == "registry"]
+        task_items = [it for it in visible_items if it["type"] == "task"]
 
-        for idx, item in enumerate(visible_items):
-            row = ctk.CTkFrame(self.frame_sys_startup_list, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
-            row.pack(fill="x", pady=4)
+        # ======================================================================
+        # 區塊 1：🟢 Startup 資料夾捷徑區 (最直觀且安全)
+        # ======================================================================
+        if file_items:
+            sec1_header = ctk.CTkFrame(self.frame_sys_startup_list, fg_color="transparent")
+            sec1_header.pack(fill="x", pady=(10, 4))
+            ctk.CTkLabel(sec1_header, text="🟢 1. Startup 開機啟動資料夾捷徑區 (直觀且安全刪除/備份)", font=self.title_font, text_color=CONFIG.THEME["SUCCESS"]).pack(side="left")
 
-            # 左側勾選框（僅對「啟用中」的項目提供批次停用勾選）
-            chk_var = ctk.BooleanVar(value=False)
-            self.startup_check_vars[idx] = (chk_var, item)
-            chk = ctk.CTkCheckBox(
-                row, text="", variable=chk_var, width=28,
-                checkbox_width=18, checkbox_height=18,
-                fg_color=CONFIG.THEME["DANGER"],
-                hover_color="#C0392B",
-                state="normal" if item["enabled"] else "disabled"
+            for idx, item in enumerate(file_items):
+                self._render_single_startup_row(item, idx)
+
+        # ======================================================================
+        # 區塊 2：🟡 Windows 登錄檔 Run 鍵值區 (軟性開關防護)
+        # ======================================================================
+        if reg_items:
+            sec2_header = ctk.CTkFrame(self.frame_sys_startup_list, fg_color="transparent")
+            sec2_header.pack(fill="x", pady=(15, 4))
+            ctk.CTkLabel(sec2_header, text="🟡 2. Windows 登錄檔 Run 鍵值區 (提供軟性關閉/開啟，不刪除機碼)", font=self.title_font, text_color=CONFIG.THEME["WARNING"]).pack(side="left")
+
+            for idx, item in enumerate(reg_items):
+                self._render_single_startup_row(item, idx + 100)
+
+        # ======================================================================
+        # 區塊 3：🔵 Windows 工作排程器啟動區 (系統背景與定時排程)
+        # ======================================================================
+        if task_items:
+            sec3_header = ctk.CTkFrame(self.frame_sys_startup_list, fg_color="transparent")
+            sec3_header.pack(fill="x", pady=(15, 4))
+            ctk.CTkLabel(sec3_header, text="🔵 3. Windows 工作排程器啟動區 (系統背景與定時排程，軟性切換)", font=self.title_font, text_color=CONFIG.THEME["PRIMARY"]).pack(side="left")
+
+            for idx, item in enumerate(task_items):
+                self._render_single_startup_row(item, idx + 200)
+
+    def _render_single_startup_row(self, item, idx):
+        row = ctk.CTkFrame(self.frame_sys_startup_list, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+        row.pack(fill="x", pady=4)
+
+        # 左側勾選框
+        chk_var = ctk.BooleanVar(value=False)
+        self.startup_check_vars[idx] = (chk_var, item)
+        chk = ctk.CTkCheckBox(
+            row, text="", variable=chk_var, width=28,
+            checkbox_width=18, checkbox_height=18,
+            fg_color=CONFIG.THEME["DANGER"], hover_color="#C0392B",
+            state="normal" if item["enabled"] else "disabled"
+        )
+        chk.pack(side="left", padx=(8, 0), pady=10)
+
+        # 狀態 Badge 與範圍標籤
+        status_text = "🟢 [運行中]" if item["enabled"] else "🛑 [已關閉]"
+        status_color = CONFIG.THEME["SUCCESS"] if item["enabled"] else CONFIG.THEME["TEXT_MUTED"]
+
+        frame_left = ctk.CTkFrame(row, fg_color="transparent", width=120)
+        frame_left.pack(side="left", padx=(6, 5), pady=8)
+
+        lbl_status = ctk.CTkLabel(frame_left, text=status_text, font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"), text_color=status_color)
+        lbl_status.pack(anchor="w")
+
+        lbl_impact = ctk.CTkLabel(frame_left, text=item["impact"], font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["WARNING"])
+        lbl_impact.pack(anchor="w")
+
+        # 軟體與用途說明
+        frame_info = ctk.CTkFrame(row, fg_color="transparent")
+        frame_info.pack(side="left", fill="both", expand=True, padx=5, pady=6)
+
+        title_text = f"✨ {item['friendly_name']}"
+        if item.get("scope") == "user":
+            title_text += " [個人帳號]"
+        elif item.get("scope") == "common":
+            title_text += " [全機共用]"
+
+        lbl_name = ctk.CTkLabel(frame_info, text=title_text, font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"], anchor="w")
+        lbl_name.pack(anchor="w")
+
+        # 若為驅動或核心系統項目，加入警示標籤
+        if item.get("is_sys_driver"):
+            lbl_sys_warn = ctk.CTkLabel(frame_info, text="⚠️ 系統/驅動必備項目 (建議維持開啟，勿隨意刪除)", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"), text_color=CONFIG.THEME["WARNING"], anchor="w")
+            lbl_sys_warn.pack(anchor="w", pady=(1, 0))
+
+        lbl_desc = ctk.CTkLabel(frame_info, text=f"💡 開機用途：{item['description']}", font=ctk.CTkFont(family="Microsoft JhengHei", size=11), text_color=CONFIG.THEME["SUCCESS"], anchor="w")
+        lbl_desc.pack(anchor="w", pady=(1, 0))
+
+        raw_info = f"登記名稱：{item['raw_name']} | 位置：{item['location']}\n指令：{item['command']}"
+        lbl_cmd = ctk.CTkLabel(frame_info, text=raw_info, font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["TEXT_MUTED"], anchor="w", justify="left")
+        lbl_cmd.pack(anchor="w", pady=(2, 0))
+
+        # 右側一鍵控制按鈕
+        if item["type"] == "file":
+            # Startup 捷徑專屬按鈕：備份並刪除捷徑
+            btn_del_shortcut = ctk.CTkButton(
+                row, text="🗑️ 備份並刪除捷徑", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+                width=150, fg_color=CONFIG.THEME["DANGER"], hover_color="#C0392B",
+                command=lambda it=item: self._backup_delete_shortcut(it)
             )
-            chk.pack(side="left", padx=(8, 0), pady=10)
-
-            # 衝擊與狀態 Badge
-            status_text = "🟢 [運行中]" if item["enabled"] else "🛑 [已關閉]"
-            status_color = CONFIG.THEME["SUCCESS"] if item["enabled"] else CONFIG.THEME["TEXT_MUTED"]
-
-            frame_left = ctk.CTkFrame(row, fg_color="transparent", width=100)
-            frame_left.pack(side="left", padx=(6, 5), pady=8)
-
-            lbl_status = ctk.CTkLabel(frame_left, text=status_text, font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"), text_color=status_color)
-            lbl_status.pack(anchor="w")
-
-            lbl_impact = ctk.CTkLabel(frame_left, text=item["impact"], font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["WARNING"])
-            lbl_impact.pack(anchor="w")
-
-            # 軟體與用途說明
-            frame_info = ctk.CTkFrame(row, fg_color="transparent")
-            frame_info.pack(side="left", fill="both", expand=True, padx=5, pady=6)
-
-            title_text = f"✨ {item['friendly_name']}"
-            lbl_name = ctk.CTkLabel(frame_info, text=title_text, font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"], anchor="w")
-            lbl_name.pack(anchor="w")
-
-            lbl_desc = ctk.CTkLabel(frame_info, text=f"💡 開機用途：{item['description']}", font=ctk.CTkFont(family="Microsoft JhengHei", size=11), text_color=CONFIG.THEME["SUCCESS"], anchor="w")
-            lbl_desc.pack(anchor="w", pady=(1, 0))
-
-            raw_info = f"內部登記名稱：{item['raw_name']} | 位置：{item['location']}\n指令：{item['command']}"
-            lbl_cmd = ctk.CTkLabel(frame_info, text=raw_info, font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["TEXT_MUTED"], anchor="w", justify="left")
-            lbl_cmd.pack(anchor="w", pady=(2, 0))
-
-            # 右側一鍵開關切換按鈕 (關閉 / 開啟)
+            btn_del_shortcut.pack(side="right", padx=10, pady=10)
+        else:
+            # 登錄檔與排程器軟性開關按鈕 (關閉 / 開啟)
             if item["enabled"]:
-                btn_txt = "🚫 停用 / 關閉開機啟動"
+                btn_txt = "🚫 軟性停用開機啟動"
                 btn_col = CONFIG.THEME["DANGER"]
                 btn_hov = "#C0392B"
             else:
-                btn_txt = "✅ 復原 / 開啟開機啟動"
+                btn_txt = "✅ 復原開啟開機啟動"
                 btn_col = CONFIG.THEME["SUCCESS"]
                 btn_hov = "#27AE60"
 
             btn_toggle = ctk.CTkButton(
                 row, text=btn_txt, font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
-                width=170, fg_color=btn_col, hover_color=btn_hov,
+                width=160, fg_color=btn_col, hover_color=btn_hov,
                 command=lambda it=item: self._toggle_startup_item(it)
             )
             btn_toggle.pack(side="right", padx=10, pady=10)
+
+    def _backup_delete_shortcut(self, item):
+        if messagebox.askyesno("備份並刪除捷徑確認", f"確定要將捷徑 [{item['friendly_name']}] 移至安全備份垃圾桶嗎？\n\n這將取消該軟體的開機自動啟動，對軟體本身零影響，隨時可復原。"):
+            ok, msg = BootOptimizerEngine.backup_and_delete_shortcut(item)
+            if ok:
+                messagebox.showinfo("成功刪除捷徑", msg)
+                self.load_system_startup_list()
+            else:
+                messagebox.showerror("刪除失敗", msg)
 
     def _batch_disable_checked_items(self):
         """批次停用所有勾選中的開機啟動項目（保留在清單，可再還原）"""
