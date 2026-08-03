@@ -1,0 +1,147 @@
+# -*- coding: utf-8 -*-
+"""
+專案名稱：本機系統快取清理與記憶體優化工具 (System Optimizer Tool)
+模組名稱：全域系統配置與 Win32 API 工具 (engine/config.py)
+"""
+
+import os
+import sys
+import ctypes
+
+class MEMORYSTATUSEX(ctypes.Structure):
+    _fields_ = [
+        ('dwLength', ctypes.c_ulong),
+        ('dwMemoryLoad', ctypes.c_ulong),
+        ('ullTotalPhys', ctypes.c_ulonglong),
+        ('ullAvailPhys', ctypes.c_ulonglong),
+        ('ullTotalPageFile', ctypes.c_ulonglong),
+        ('ullAvailPageFile', ctypes.c_ulonglong),
+        ('ullTotalVirtual', ctypes.c_ulonglong),
+        ('ullAvailVirtual', ctypes.c_ulonglong),
+        ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
+    ]
+
+def get_system_ram_info():
+    """使用 Windows 原生 API 獲取當前系統記憶體狀態 (MB, 負載%)"""
+    try:
+        if sys.platform.startswith('win'):
+            stat = MEMORYSTATUSEX()
+            stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+            total_mb = stat.ullTotalPhys / (1024 * 1024)
+            avail_mb = stat.ullAvailPhys / (1024 * 1024)
+            used_mb = total_mb - avail_mb
+            load_percent = stat.dwMemoryLoad
+            return total_mb, avail_mb, used_mb, load_percent
+    except Exception:
+        pass
+    return 0.0, 0.0, 0.0, 0
+
+def format_size_str(mb_val):
+    """容量單位動態轉換：大於等於 1024 MB 轉換為 GB 顯示，否則顯示 MB"""
+    if mb_val >= 1024:
+        return f"{mb_val / 1024:.2f} GB"
+    else:
+        return f"{mb_val:.1f} MB"
+
+def get_portable_config_dir():
+    """取得便攜版優先目錄：若當前目錄可寫入，優先使用主程式旁 config/ 資料夾，否則回退至 LocalAppData"""
+    base_script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    portable_dir = os.path.join(base_script_dir, "config")
+    try:
+        os.makedirs(portable_dir, exist_ok=True)
+        test_file = os.path.join(portable_dir, ".perm_test")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        return portable_dir
+    except Exception:
+        user_local = os.path.join(os.path.expanduser("~"), "AppData", "Local", "SystemOptimizerTool")
+        os.makedirs(user_local, exist_ok=True)
+        return user_local
+
+class CONFIG:
+    APP_NAME = "本機系統快取清理與記憶體優化工具"
+    VERSION = "v3.0 (全能極速便攜版)"
+    
+    DEFAULT_CPU_THRESHOLD = 80.0
+    DEFAULT_PROCESS_RAM_LIMIT = 500
+    TARGET_PROCESSES = ["python.exe", "node.exe"]
+    
+    USER_HOME = os.path.expanduser("~")
+    TEMP_DIR = os.path.join(USER_HOME, "AppData", "Local", "Temp")
+    PREFETCH_DIR = r"C:\Windows\Prefetch"
+    
+    CONFIG_BASE_DIR = get_portable_config_dir()
+    CUSTOM_SCRIPT_JSON = os.path.join(CONFIG_BASE_DIR, "custom_scripts.json")
+    STARTUP_BACKUP_JSON = os.path.join(CONFIG_BASE_DIR, "startup_backup.json")
+    BACKUP_SHORTCUTS_DIR = os.path.join(CONFIG_BASE_DIR, "backup_shortcuts")
+
+    CRASH_DUMPS_DIR = os.path.join(USER_HOME, "AppData", "Local", "CrashDumps")
+    WER_DIR = r"C:\ProgramData\Microsoft\Windows\WER"
+    DELIVERY_OPTIMIZATION_DIR = r"C:\ProgramData\Microsoft\Windows\DeliveryOptimizationCache"
+    
+    PKG_CACHE_DIRS = [
+        ("pip 快取目錄", os.path.join(USER_HOME, "AppData", "Local", "pip", "cache")),
+        ("uv 快取 (Local)", os.path.join(USER_HOME, "AppData", "Local", "uv", "cache")),
+        ("uv 快取 (Home)", os.path.join(USER_HOME, ".cache", "uv")),
+        ("npm 快取目錄", os.path.join(USER_HOME, "AppData", "Local", "npm-cache")),
+        ("pnpm 快取目錄", os.path.join(USER_HOME, "AppData", "Local", "pnpm", "cache")),
+        ("Yarn 快取目錄", os.path.join(USER_HOME, "AppData", "Local", "Yarn", "Cache")),
+        ("Poetry 快取目錄", os.path.join(USER_HOME, "AppData", "Local", "pypoetry", "Cache")),
+    ]
+
+    SHADER_CACHE_DIRS = [
+        ("DirectX 著色器快取", os.path.join(USER_HOME, "AppData", "Local", "D3DSCache")),
+        ("NVIDIA DX 快取", os.path.join(USER_HOME, "AppData", "Local", "NVIDIA", "DXCache")),
+        ("NVIDIA NV 快取", os.path.join(USER_HOME, "AppData", "Local", "NVIDIA", "NV_Cache")),
+        ("AMD 著色器快取", os.path.join(USER_HOME, "AppData", "Local", "AMD", "DxCache")),
+    ]
+    
+    THUMBNAIL_CACHE_DIR = os.path.join(USER_HOME, "AppData", "Local", "Microsoft", "Windows", "Explorer")
+
+    CHROME_USER_DATA = os.path.join(USER_HOME, "AppData", "Local", "Google", "Chrome", "User Data")
+    EDGE_USER_DATA = os.path.join(USER_HOME, "AppData", "Local", "Microsoft", "Edge", "User Data")
+    BRAVE_USER_DATA = os.path.join(USER_HOME, "AppData", "Local", "BraveSoftware", "Brave-Browser", "User Data")
+    FIREFOX_PROFILES = os.path.join(USER_HOME, "AppData", "Local", "Mozilla", "Firefox", "Profiles")
+    
+    APP_CACHE_DIRS = [
+        ("VS Code 快取", os.path.join(USER_HOME, "AppData", "Roaming", "Code", "Cache")),
+        ("VS Code 程式碼快取", os.path.join(USER_HOME, "AppData", "Roaming", "Code", "CachedData")),
+        ("Discord 快取", os.path.join(USER_HOME, "AppData", "Roaming", "discord", "Cache")),
+        ("Spotify 暫存區", os.path.join(USER_HOME, "AppData", "Local", "Spotify", "Storage")),
+        ("Adobe 媒體快取檔", os.path.join(USER_HOME, "AppData", "Roaming", "Adobe", "Common", "Media Cache Files")),
+        ("Adobe 媒體快取區", os.path.join(USER_HOME, "AppData", "Roaming", "Adobe", "Common", "Media Cache")),
+    ]
+    JETBRAINS_BASE_DIR = os.path.join(USER_HOME, "AppData", "Local", "JetBrains")
+
+    SCAN_DEPTH_OPTIONS = {
+        "僅首層目錄": 1,
+        "掃描 2 層": 2,
+        "掃描 3 層": 3,
+        "無限制 (完整清理)": 999
+    }
+    DEFAULT_SCAN_DEPTH = "無限制 (完整清理)"
+    DRY_RUN = True
+
+    THEME = {
+        "BG_DARK": "#0F0F17",
+        "SIDEBAR_BG": "#13131E",
+        "CARD_BG": "#1A1A28",
+        "CARD_BORDER": "#2C2C45",
+        "TEXT_LIGHT": "#E8E8F0",
+        "TEXT_MUTED": "#6B6B8A",
+        "PRIMARY": "#5B7BFE",
+        "PRIMARY_HOVER": "#4A68E8",
+        "SUCCESS": "#2ECC8A",
+        "SUCCESS_HOVER": "#25B87A",
+        "WARNING": "#F0A500",
+        "DANGER": "#FF4757",
+        "DANGER_HOVER": "#E03050",
+        "ACCENT": "#A78BFA"
+    }
+    
+    PROTECTED_KEYWORDS = [
+        ".git", ".antigravity", "rules.md", "main.py", 
+        "explorer.exe", "taskmgr.exe", "svchost.exe"
+    ]
