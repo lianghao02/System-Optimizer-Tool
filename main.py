@@ -146,34 +146,52 @@ class SystemOptimizerApp(ctk.CTk):
         main_container = ctk.CTkFrame(page, fg_color="transparent")
         main_container.pack(fill="both", expand=True)
 
-        # 左側控制面板
-        left_panel = ctk.CTkFrame(main_container, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10, width=420)
-        left_panel.pack(side="left", fill="both", padx=(0, 10))
+        # 左側控制面板 (固定寬度 440px，確保多文字 Checkbox 完全不被截斷)
+        left_panel = ctk.CTkFrame(main_container, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10, width=440)
+        left_panel.pack(side="left", fill="y", padx=(0, 10))
+        left_panel.pack_propagate(False)
 
+        # 底部按鈕與統計卡片 (先 pack 在底部，讓上方 scroll_left 獲得最大彈性高度)
+        self.btn_launch = ctk.CTkButton(
+            left_panel, text="⚡ 開始一鍵優化", font=ctk.CTkFont(family="Microsoft JhengHei", size=14, weight="bold"),
+            fg_color=CONFIG.THEME["SUCCESS"], text_color=CONFIG.THEME["TEXT_LIGHT"], hover_color="#2196F3",
+            corner_radius=8, height=40, command=self.execute_optimization_flow
+        )
+        self.btn_launch.pack(side="bottom", fill="x", padx=12, pady=(4, 12))
+
+        stats_card = ctk.CTkFrame(left_panel, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+        stats_card.pack(side="bottom", fill="x", padx=12, pady=(4, 6))
+        self.lbl_total_stats = ctk.CTkLabel(
+            stats_card, text="🧹 暫存已清理容量：0.0 MB\n💾 實體 RAM 已釋出：0.0 MB",
+            font=self.sec_title_font, text_color=CONFIG.THEME["SUCCESS"], justify="left"
+        )
+        self.lbl_total_stats.pack(padx=10, pady=8)
+
+        # 上方可滾動選單區域 (填滿剩餘高度)
         scroll_left = ctk.CTkScrollableFrame(left_panel, fg_color="transparent")
-        scroll_left.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll_left.pack(side="top", fill="both", expand=True, padx=5, pady=5)
 
         ctk.CTkLabel(scroll_left, text="🧹 第一類：無感完全安全清理", font=self.title_font, text_color=CONFIG.THEME["SUCCESS"]).pack(anchor="w", padx=10, pady=(8, 4))
-        ctk.CTkCheckBox(scroll_left, text="清理使用者暫存區 (Temp)", variable=self.var_clean_temp, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="清理崩潰傾印檔與 WER 報告", variable=self.var_clean_crash_wer, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="清理微軟傳遞優化下載快取", variable=self.var_clean_delivery_opt, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="清理開發套件包快取 (pip/uv/npm/Yarn)", variable=self.var_clean_pkg_caches, font=self.default_font).pack(anchor="w", padx=10, pady=3)
+        ctk.CTkCheckBox(scroll_left, text="清理使用者暫存區 (Temp)", variable=self.var_clean_temp, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="清理崩潰傾印檔與 WER 報告", variable=self.var_clean_crash_wer, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="清理微軟傳遞優化下載快取", variable=self.var_clean_delivery_opt, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="清理開發套件包快取 (pip/uv/npm/Yarn)", variable=self.var_clean_pkg_caches, font=self.default_font).pack(anchor="w", padx=10, pady=4)
 
         ctk.CTkFrame(scroll_left, fg_color=CONFIG.THEME["BG_DARK"], height=2).pack(fill="x", padx=10, pady=8)
 
         ctk.CTkLabel(scroll_left, text="⚡ 第二類：軟體快取與全碟自動盤點", font=self.title_font, text_color=CONFIG.THEME["WARNING"]).pack(anchor="w", padx=10, pady=(4, 4))
-        ctk.CTkCheckBox(scroll_left, text="清理網頁快取 (Chrome / Edge 各 Profile)", variable=self.var_clean_browser, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="清理軟體與 IDE 快取 (VS Code/JetBrains)", variable=self.var_clean_apps, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="🔍 智慧全碟快取自動盤點 (搜尋 > 50MB 快取)", variable=self.var_smart_scan, font=self.default_font, text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="清理顯卡著色器快取 (DirectX / NVIDIA / AMD)", variable=self.var_clean_shader, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="清理檔案總管縮圖快取 (thumbcache_*.db)", variable=self.var_clean_thumbnail, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="清理系統預載歷史 (Prefetch)", variable=self.var_clean_prefetch, font=self.default_font).pack(anchor="w", padx=10, pady=3)
+        ctk.CTkCheckBox(scroll_left, text="清理網頁快取 (Chrome / Edge 各 Profile)", variable=self.var_clean_browser, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="清理軟體與 IDE 快取 (VS Code/JetBrains)", variable=self.var_clean_apps, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="🔍 智慧全碟快取自動盤點 (搜尋 > 50MB 快取)", variable=self.var_smart_scan, font=self.default_font, text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="清理顯卡著色器快取 (DirectX / NVIDIA / AMD)", variable=self.var_clean_shader, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="清理檔案總管縮圖快取 (thumbcache_*.db)", variable=self.var_clean_thumbnail, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="清理系統預載歷史 (Prefetch)", variable=self.var_clean_prefetch, font=self.default_font).pack(anchor="w", padx=10, pady=4)
 
         ctk.CTkFrame(scroll_left, fg_color=CONFIG.THEME["BG_DARK"], height=2).pack(fill="x", padx=10, pady=8)
 
         ctk.CTkLabel(scroll_left, text="⚙️ 處理程序與模擬控制", font=self.title_font, text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=10, pady=(4, 4))
-        ctk.CTkCheckBox(scroll_left, text="關閉高記憶體佔用閒置處理程序", variable=self.var_kill_zombie, font=self.default_font).pack(anchor="w", padx=10, pady=3)
-        ctk.CTkCheckBox(scroll_left, text="🛡️ 模擬開關 (僅預覽不刪除檔案)", variable=self.var_dry_run, font=self.default_font).pack(anchor="w", padx=10, pady=3)
+        ctk.CTkCheckBox(scroll_left, text="關閉高記憶體佔用閒置處理程序", variable=self.var_kill_zombie, font=self.default_font).pack(anchor="w", padx=10, pady=4)
+        ctk.CTkCheckBox(scroll_left, text="🛡️ 模擬開關 (僅預覽不刪除檔案)", variable=self.var_dry_run, font=self.default_font).pack(anchor="w", padx=10, pady=4)
 
         lbl_slider_desc = ctk.CTkLabel(scroll_left, text="處理程序記憶體門檻：", font=self.default_font)
         lbl_slider_desc.pack(anchor="w", padx=10, pady=(4, 2))
@@ -187,22 +205,8 @@ class SystemOptimizerApp(ctk.CTk):
         )
         self.ram_slider.pack(fill="x", padx=10, pady=4)
 
-        stats_card = ctk.CTkFrame(left_panel, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
-        stats_card.pack(fill="x", padx=10, pady=(6, 4))
-        self.lbl_total_stats = ctk.CTkLabel(
-            stats_card, text="🧹 暫存已清理容量：0.0 MB\n💾 實體 RAM 已釋出：0.0 MB",
-            font=self.sec_title_font, text_color=CONFIG.THEME["SUCCESS"], justify="left"
-        )
-        self.lbl_total_stats.pack(padx=10, pady=6)
-
-        self.btn_launch = ctk.CTkButton(
-            left_panel, text="⚡ 開始一鍵優化", font=ctk.CTkFont(family="Microsoft JhengHei", size=14, weight="bold"),
-            fg_color=CONFIG.THEME["SUCCESS"], text_color=CONFIG.THEME["TEXT_LIGHT"], hover_color="#2196F3",
-            corner_radius=8, height=38, command=self.execute_optimization_flow
-        )
-        self.btn_launch.pack(fill="x", padx=10, pady=(4, 10))
-
-        right_panel = ctk.CTkFrame(page, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10)
+        # 右側 Console 面板 (與左側控制面板在 main_container 內平行並排)
+        right_panel = ctk.CTkFrame(main_container, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10)
         right_panel.pack(side="right", fill="both", expand=True)
 
         ctk.CTkLabel(right_panel, text="🖥️ 執行過程即時記錄Console", font=self.title_font, text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=15, pady=(12, 5))
