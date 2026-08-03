@@ -235,7 +235,7 @@ class BootOptimizerEngine:
             if len(lines) > 1:
                 header = [h.replace('"', '').strip() for h in lines[0].split(',')]
                 for line in lines[1:]:
-                    if r"\Microsoft\Windows\" in line: continue  # 即刻剔除微軟龐大內部排程，減少 90% 耗時
+                    if "\\Microsoft\\Windows\\" in line: continue  # 即刻剔除微軟龐大內部排程，減少 90% 耗時
                     parts = [p.replace('"', '').strip() for p in line.split(',')]
                     if len(parts) == len(header):
                         row = dict(zip(header, parts))
