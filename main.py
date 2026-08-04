@@ -18,7 +18,7 @@ import threading
 import customtkinter as ctk
 from tkinter import messagebox, scrolledtext
 
-from engine.config import CONFIG, get_system_ram_info, format_size_str
+from engine.config import CONFIG, get_system_ram_info, format_size_str, load_protected_keywords, save_protected_keywords
 from engine.optimizer import OptimizerEngine
 from engine.boot import BootOptimizerEngine
 from engine.uninstaller import UninstallerEngine
@@ -34,12 +34,19 @@ class SystemOptimizerApp(ctk.CTk):
         self.geometry("980x740")
         ctk.set_appearance_mode("dark")
 
+        load_protected_keywords()
+
         self.default_font = ctk.CTkFont(family="Microsoft JhengHei", size=12)
         self.title_font = ctk.CTkFont(family="Microsoft JhengHei", size=14, weight="bold")
         self.sec_title_font = ctk.CTkFont(family="Microsoft JhengHei", size=12, weight="bold")
 
         self.total_freed_disk_mb = 0.0
         self.total_freed_ram_mb = 0.0
+
+        # 全域無障礙與高效率熱鍵綁定 (AccessLint 指引)
+        self.bind("<F5>", lambda e: self._handle_f5_refresh())
+        self.bind("<Control-f>", lambda e: self._handle_ctrl_f())
+        self.bind("<Control-F>", lambda e: self._handle_ctrl_f())
 
         # UI 控制變數
         self.var_clean_temp = ctk.BooleanVar(value=True)
@@ -417,6 +424,18 @@ class SystemOptimizerApp(ctk.CTk):
             )
             btn_toggle.pack(side="right", padx=10, pady=10)
 
+        btn_loc = ctk.CTkButton(
+            row, text="📂 檔案位置", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            width=100, fg_color=CONFIG.THEME["CARD_BG"], hover_color=CONFIG.THEME["PRIMARY"],
+            command=lambda it=item: self._open_startup_item_location(it)
+        )
+        btn_loc.pack(side="right", padx=(5, 0), pady=10)
+
+    def _open_startup_item_location(self, item):
+        ok, msg = BootOptimizerEngine.open_item_location(item)
+        if not ok:
+            messagebox.showwarning("無法開啟位置", msg)
+
     def _backup_delete_shortcut(self, item):
         if messagebox.askyesno("備份並刪除捷徑確認", f"確定要將捷徑 [{item['friendly_name']}] 移至安全備份垃圾桶嗎？\n\n這將取消該軟體的開機自動啟動，對軟體本身零影響，隨時可復原。"):
             ok, msg = BootOptimizerEngine.backup_and_delete_shortcut(item)
@@ -578,6 +597,18 @@ class SystemOptimizerApp(ctk.CTk):
             )
             btn_uninstall.pack(side="right", padx=10, pady=8)
 
+            btn_sw_loc = ctk.CTkButton(
+                row, text="📂 安裝位置", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+                width=100, fg_color=CONFIG.THEME["CARD_BG"], hover_color=CONFIG.THEME["PRIMARY"],
+                command=lambda it=item: self._open_uninstall_item_location(it)
+            )
+            btn_sw_loc.pack(side="right", padx=(5, 0), pady=8)
+
+    def _open_uninstall_item_location(self, item):
+        ok, msg = UninstallerEngine.open_install_location(item)
+        if not ok:
+            messagebox.showwarning("無法開啟位置", msg)
+
     def _uninstall_software_flow(self, item):
         sw_name = item["name"]
         un_cmd = item["uninstall_string"]
@@ -620,11 +651,91 @@ class SystemOptimizerApp(ctk.CTk):
         ctk.CTkLabel(scroll_set, text="🛡️ 全域安全保護白名單 (絕對禁止清理與刪除)", font=self.title_font, text_color=CONFIG.THEME["SUCCESS"]).pack(anchor="w", padx=15, pady=(15, 5))
         ctk.CTkLabel(scroll_set, text="💡 提示：本工具內建硬核保護邏輯，包含下列關鍵字之檔案與資料夾將被自動強制跳過，絕不更動系統核心。", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=15, pady=(0, 10))
 
-        frame_wl = ctk.CTkFrame(scroll_set, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=8)
-        frame_wl.pack(fill="x", padx=15, pady=5)
+        # 新增保護關鍵字輸入欄位
+        frame_add_kw = ctk.CTkFrame(scroll_set, fg_color="transparent")
+        frame_add_kw.pack(fill="x", padx=15, pady=(0, 10))
 
-        for kw in CONFIG.PROTECTED_KEYWORDS:
-            ctk.CTkLabel(frame_wl, text=f"🔒 系統受保護關鍵字：{kw}", font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(anchor="w", padx=15, pady=6)
+        self.entry_add_kw = ctk.CTkEntry(frame_add_kw, placeholder_text="輸入自訂保護關鍵字 (例如：mydata / .secret)...", width=340)
+        self.entry_add_kw.pack(side="left")
+
+        btn_add_kw = ctk.CTkButton(
+            frame_add_kw, text="➕ 新增保護關鍵字", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            fg_color=CONFIG.THEME["SUCCESS"], hover_color=CONFIG.THEME["SUCCESS_HOVER"], width=150,
+            command=self._add_whitelist_keyword
+        )
+        btn_add_kw.pack(side="left", padx=8)
+
+        btn_reset_kw = ctk.CTkButton(
+            frame_add_kw, text="🔄 恢復預設白名單", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            fg_color=CONFIG.THEME["PRIMARY"], hover_color=CONFIG.THEME["PRIMARY_HOVER"], width=150,
+            command=self._reset_whitelist_keywords
+        )
+        btn_reset_kw.pack(side="right")
+
+        self.frame_wl_list = ctk.CTkFrame(scroll_set, fg_color="transparent")
+        self.frame_wl_list.pack(fill="x", padx=15, pady=5)
+
+        self.refresh_whitelist_ui()
+
+    def refresh_whitelist_ui(self):
+        for widget in self.frame_wl_list.winfo_children(): widget.destroy()
+        keywords = load_protected_keywords()
+
+        for kw in keywords:
+            row = ctk.CTkFrame(self.frame_wl_list, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+            row.pack(fill="x", pady=3)
+
+            is_default = kw in CONFIG.DEFAULT_PROTECTED_KEYWORDS
+            badge = "🔒 [系統預設保護]" if is_default else "👤 [使用者自訂保護]"
+            badge_col = CONFIG.THEME["SUCCESS"] if is_default else CONFIG.THEME["PRIMARY"]
+
+            ctk.CTkLabel(row, text=badge, font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"), text_color=badge_col, width=150).pack(side="left", padx=10, pady=8)
+            ctk.CTkLabel(row, text=kw, font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left", padx=10, pady=8)
+
+            if not is_default:
+                btn_del = ctk.CTkButton(
+                    row, text="🗑️ 移除", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+                    width=70, fg_color=CONFIG.THEME["DANGER"], hover_color="#C0392B",
+                    command=lambda k=kw: self._remove_whitelist_keyword(k)
+                )
+                btn_del.pack(side="right", padx=10, pady=6)
+
+    def _add_whitelist_keyword(self):
+        kw = self.entry_add_kw.get().strip()
+        if not kw:
+            messagebox.showwarning("欄位空白", "請輸入要保護的關鍵字！")
+            return
+        curr = load_protected_keywords()
+        if kw.lower() in [k.lower() for k in curr]:
+            messagebox.showinfo("關鍵字已存在", f"白名單中已包含此保護關鍵字：{kw}")
+            return
+        curr.append(kw)
+        save_protected_keywords(curr)
+        self.entry_add_kw.delete(0, "end")
+        self.refresh_whitelist_ui()
+        messagebox.showinfo("新增成功", f"已成功新增保護關鍵字：{kw}")
+
+    def _remove_whitelist_keyword(self, kw):
+        curr = load_protected_keywords()
+        if kw in curr:
+            curr.remove(kw)
+            save_protected_keywords(curr)
+            self.refresh_whitelist_ui()
+
+    def _reset_whitelist_keywords(self):
+        if messagebox.askyesno("恢復預設白名單", "確定要清空所有自訂關鍵字，恢復為系統預設保護白名單嗎？"):
+            save_protected_keywords(CONFIG.DEFAULT_PROTECTED_KEYWORDS)
+            self.refresh_whitelist_ui()
+
+    def _handle_f5_refresh(self):
+        self.load_system_startup_list()
+        self.load_uninstall_software_list()
+        self.append_log("🔄 已觸發 <F5> 熱鍵：系統啟動項與軟體清單已重新整理！", CONFIG.THEME["PRIMARY"])
+
+    def _handle_ctrl_f(self):
+        if hasattr(self, 'entry_sw_search'):
+            self.show_page("uninstall")
+            self.entry_sw_search.focus_set()
 
     # --------------------------------------------------------------------------
     # 邏輯控制與一鍵優化排程

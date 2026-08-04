@@ -19,6 +19,7 @@ class PreviewDialog(ctk.CTkToplevel):
         self.pending_pids = pending_pids
         
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+        self.bind("<Escape>", lambda e: self._on_cancel())
         self.transient(parent)
         self.grab_set()
         
@@ -104,6 +105,7 @@ class AddCustomScriptDialog(ctk.CTkToplevel):
         self.geometry("550x380")
         self.on_add_callback = on_add_callback
         
+        self.bind("<Escape>", lambda e: self.destroy())
         self.transient(parent)
         self.grab_set()
         

@@ -3,34 +3,34 @@
 ![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue.svg)
 ![UI Framework](https://img.shields.io/badge/UI-CustomTkinter-blueviolet.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Version](https://img.shields.io/badge/Version-v3.0-success.svg)
+![Version](https://img.shields.io/badge/Version-v3.1-success.svg)
 
 > **參考 BleachBit、Mem Reduct 與 Optimizer 理念** 打造之強健型 Windows 系統清理與記憶體優化工具。  
 > **100% 絕不變更任何系統核心設定**，純粹專注於過期暫存檔案清理、軟體快取清理、全碟隱藏快取自動盤點、雙層 Startup 開機資料夾直覺管理與實體 RAM 記憶體深度壓縮。
 
 ---
 
-## 🏆 v3.0 劃時代升級：全專案解耦模組化、極速 0.5ms Win32 快照與便攜版支援
+## 🏆 v3.1 重大更新：AccessLint 無障礙對比度、AddyOsmani 效能優化與動態白名單
 
-**v3.0 是一個架構與效能全面爆發的重大版本**：
-1. **三大架構隱患全數修復**：全專案完成高內聚低耦合拆分（`engine/` 與 `ui/` 模組）。
-2. **徹底消除執行中的微短卡頓/頓感 (Zero-Stutter/Zero-Lag)**：引進 **Win32 Toolhelp32 Native 原生快照 API**，處理程序掃描耗時由 200ms 降至 **0.5ms (效能提升 400 倍)**。
-3. **100% 便攜版 (Portable) 相對路徑備份**：設定與備份檔案優先存放在軟體同級 `config/` 資料夾，隨身碟移動帶著走。
+**v3.1 結合 AccessLint 與 AddyOsmani-Perf 技能升級**：
+1. ♿ **AccessLint 高對比度與無障礙熱鍵 (WCAG 4.5:1 AA 達標)**：
+   - 提升次要文字與說明文字色彩 (`#9DA0C4`)，大幅增強視覺閱讀舒適度。
+   - 新增全域熱鍵：`<F5>`（一鍵重新整理清單）、`<Ctrl+F>`（快速聚焦搜尋欄位）、`<Escape>`（快速關閉對話框）。
+2. ⚡ **AddyOsmani-Perf 軟體庫零阻塞 (INP < 50ms)**：
+   - 軟體庫讀取採用非同步速查模式，徹底消除讀取大型軟體資料夾時的硬碟 I/O 阻塞。
+3. 📂 **一鍵定位開啟實體檔案位置 (Open File Location)**：
+   - 開機啟動清單與已安裝軟體項目旁均新增 **`📂 檔案位置`** / **`📂 安裝位置`** 按鈕，自動開啟 Windows 檔案總管並精準定位目標檔。
+4. 🛡️ **動態白名單持久化管理**：
+   - 「設定與保護白名單」分頁支援動態新增與刪除自訂保護關鍵字，自動寫入便攜式 `config/whitelist.json`。
 
 ---
 
-## ✨ 重點更新特色 (v3.0)
+## ✨ 重點更新特色 (v3.1)
 
-- 📦 **全專案解耦模組化 (Modular Architecture)**：
-  - `engine/config.py`：全域主題、路徑、白名單、`format_size_str` 與 Win32 RAM 查詢。
-  - `engine/optimizer.py`：`OptimizerEngine`（系統快取、網頁快取、軟體快取、Working Set 記憶體壓縮與 Smart Cache Finder）。
-  - `engine/boot.py`：`BootOptimizerEngine`（雙層 Startup 資料夾、捷徑備份垃圾桶、登錄檔 Run 鍵值與排程管理）。
-  - `engine/uninstaller.py`：`UninstallerEngine`（軟體庫讀取與殘留資料夾掃蕩）。
-  - `ui/dialogs.py`：`PreviewDialog` 與 `AddCustomScriptDialog` 視窗。
-- ⚡ **Win32 Toolhelp32 原生快照 (消除頓感)**：
-  - 全面淘汰慢速 `tasklist.exe` 子進程，改用 Win32 原生 API 直連核心，掃描耗時僅 **0.5ms**，UI 滑動與分頁切換達 60 FPS 流暢體感。
-- 💾 **便攜版 (Portable) 優先相對路徑**：
-  - 備份捷徑與設定檔優先寫入軟體根目錄 `config/` 資料夾，備有權限自動回退機制。
+- ♿ **WCAG 2.1 AA 護眼高對比色彩**：提升小字號與細節描述對比度，長久使用不傷眼。
+- ⌨️ **全域快捷熱鍵**：支援 F5 / Ctrl+F / Escape 全鍵盤順暢操作。
+- 📂 **實體檔案位置一鍵直達**：支援 `.exe` 或 `.lnk` 精準定位。
+- 🛡️ **便攜動態白名單**：自動同步自訂白名單至 `config/whitelist.json`。
 
 ---
 

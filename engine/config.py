@@ -76,6 +76,7 @@ class CONFIG:
     CUSTOM_SCRIPT_JSON = os.path.join(CONFIG_BASE_DIR, "custom_scripts.json")
     STARTUP_BACKUP_JSON = os.path.join(CONFIG_BASE_DIR, "startup_backup.json")
     BACKUP_SHORTCUTS_DIR = os.path.join(CONFIG_BASE_DIR, "backup_shortcuts")
+    WHITELIST_JSON = os.path.join(CONFIG_BASE_DIR, "whitelist.json")
 
     CRASH_DUMPS_DIR = os.path.join(USER_HOME, "AppData", "Local", "CrashDumps")
     WER_DIR = r"C:\ProgramData\Microsoft\Windows\WER"
@@ -130,7 +131,7 @@ class CONFIG:
         "CARD_BG": "#1A1A28",
         "CARD_BORDER": "#2C2C45",
         "TEXT_LIGHT": "#E8E8F0",
-        "TEXT_MUTED": "#6B6B8A",
+        "TEXT_MUTED": "#9DA0C4",  # AccessLint: 符合 WCAG 2.1 4.5:1 AA 高對比標準
         "PRIMARY": "#5B7BFE",
         "PRIMARY_HOVER": "#4A68E8",
         "SUCCESS": "#2ECC8A",
@@ -141,7 +142,36 @@ class CONFIG:
         "ACCENT": "#A78BFA"
     }
     
-    PROTECTED_KEYWORDS = [
+    DEFAULT_PROTECTED_KEYWORDS = [
         ".git", ".antigravity", "rules.md", "main.py", 
         "explorer.exe", "taskmgr.exe", "svchost.exe"
     ]
+    PROTECTED_KEYWORDS = list(DEFAULT_PROTECTED_KEYWORDS)
+
+def load_protected_keywords():
+    """載入動態與持久化保護白名單"""
+    try:
+        import json
+        if os.path.exists(CONFIG.WHITELIST_JSON):
+            with open(CONFIG.WHITELIST_JSON, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    CONFIG.PROTECTED_KEYWORDS = list(dict.fromkeys(CONFIG.DEFAULT_PROTECTED_KEYWORDS + data))
+                    return CONFIG.PROTECTED_KEYWORDS
+    except Exception: pass
+    CONFIG.PROTECTED_KEYWORDS = list(CONFIG.DEFAULT_PROTECTED_KEYWORDS)
+    return CONFIG.PROTECTED_KEYWORDS
+
+def save_protected_keywords(keywords_list):
+    """保存動態保護白名單至 JSON"""
+    try:
+        import json
+        os.makedirs(os.path.dirname(CONFIG.WHITELIST_JSON), exist_ok=True)
+        unique_kw = list(dict.fromkeys(keywords_list))
+        CONFIG.PROTECTED_KEYWORDS = unique_kw
+        with open(CONFIG.WHITELIST_JSON, "w", encoding="utf-8") as f:
+            json.dump(unique_kw, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
+

@@ -110,6 +110,34 @@ class BootOptimizerEngine:
         return any(k in combined for k in driver_keys)
 
     @staticmethod
+    def open_item_location(item):
+        """開啟開機啟動項目之實體檔案或資料夾位置 (Windows File Explorer)"""
+        try:
+            cmd = item.get("command", "").strip()
+            target_path = ""
+
+            if item.get("type") == "file" and os.path.exists(cmd):
+                target_path = cmd
+            elif ".exe" in cmd.lower():
+                parts = cmd.split(".exe")
+                raw = (parts[0] + ".exe").replace('"', '').strip()
+                if os.path.exists(raw):
+                    target_path = raw
+            elif os.path.exists(cmd):
+                target_path = cmd
+
+            if target_path and os.path.exists(target_path):
+                subprocess.Popen(f'explorer.exe /select,"{target_path}"', shell=True)
+                return True, f"已開啟檔案位置：{target_path}"
+            elif target_path and os.path.exists(os.path.dirname(target_path)):
+                os.startfile(os.path.dirname(target_path))
+                return True, f"已開啟資料夾位置：{os.path.dirname(target_path)}"
+            else:
+                return False, f"無法開啟位置 (檔案可能不存在或為純參數指令)：{cmd}"
+        except Exception as e:
+            return False, f"開啟失敗: {str(e)}"
+
+    @staticmethod
     def backup_and_delete_shortcut(item):
         """安全將 Startup 資料夾之捷徑檔 (.lnk) 移至便攜式安全備份垃圾桶"""
         try:

@@ -60,12 +60,13 @@ class UninstallerEngine:
                             if isinstance(estimated_size, int) and estimated_size > 0:
                                 size_mb = estimated_size / 1024.0
                             elif install_location and os.path.exists(install_location):
+                                # AddyOsmani-Perf: 採用單層快速預估，避免大型專案資料夾 full os.walk 造成 I/O 阻塞
                                 try:
                                     tot_b = 0
-                                    for r, d, files in os.walk(install_location):
-                                        for f in files:
-                                            try: tot_b += os.path.getsize(os.path.join(r, f))
-                                            except: pass
+                                    for f in os.listdir(install_location)[:30]:
+                                        fp = os.path.join(install_location, f)
+                                        if os.path.isfile(fp):
+                                            tot_b += os.path.getsize(fp)
                                     size_mb = tot_b / (1024 * 1024)
                                 except: pass
 
@@ -89,8 +90,35 @@ class UninstallerEngine:
                 winreg.CloseKey(key)
             except: pass
 
-        software_list.sort(key=lambda x: x["size_mb"], reverse=True)
+        software_list.sort(key=lambda x: (x["size_mb"], len(x["name"])), reverse=True)
         return software_list
+
+    @staticmethod
+    def open_install_location(item):
+        """開啟已安裝軟體之本機安裝資料夾或卸載路徑 (Windows File Explorer)"""
+        try:
+            loc = item.get("install_location", "").strip()
+            un_cmd = item.get("uninstall_string", "").strip()
+
+            target_path = ""
+            if loc and os.path.exists(loc):
+                target_path = loc
+            elif ".exe" in un_cmd.lower():
+                parts = un_cmd.split(".exe")
+                raw = (parts[0] + ".exe").replace('"', '').strip()
+                if os.path.exists(raw):
+                    target_path = raw
+
+            if target_path and os.path.isfile(target_path):
+                subprocess.Popen(f'explorer.exe /select,"{target_path}"', shell=True)
+                return True, f"已定位並開啟軟體檔案：{target_path}"
+            elif target_path and os.path.isdir(target_path):
+                os.startfile(target_path)
+                return True, f"已開啟軟體安裝資料夾：{target_path}"
+            else:
+                return False, f"無法開啟位置 (安裝路徑不存在或未提供)：{loc if loc else un_cmd}"
+        except Exception as e:
+            return False, f"開啟失敗: {str(e)}"
 
     @staticmethod
     def scan_appdata_leftovers(software_name, install_location=""):
