@@ -1,41 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 專案名稱：本機系統快取清理與記憶體優化工具 (System Optimizer Tool)
-模組名稱：全域系統配置與 Win32 API 工具 (engine/config.py)
+模組名稱：全域系統配置與白名單持久化 (engine/config.py)
+職責：純粹收容全域設定、常數、路徑、JSON 讀寫與白名單管理，100% 絕不執行系統動作。
 """
 
 import os
-import sys
-import ctypes
-
-class MEMORYSTATUSEX(ctypes.Structure):
-    _fields_ = [
-        ('dwLength', ctypes.c_ulong),
-        ('dwMemoryLoad', ctypes.c_ulong),
-        ('ullTotalPhys', ctypes.c_ulonglong),
-        ('ullAvailPhys', ctypes.c_ulonglong),
-        ('ullTotalPageFile', ctypes.c_ulonglong),
-        ('ullAvailPageFile', ctypes.c_ulonglong),
-        ('ullTotalVirtual', ctypes.c_ulonglong),
-        ('ullAvailVirtual', ctypes.c_ulonglong),
-        ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
-    ]
-
-def get_system_ram_info():
-    """使用 Windows 原生 API 獲取當前系統記憶體狀態 (MB, 負載%)"""
-    try:
-        if sys.platform.startswith('win'):
-            stat = MEMORYSTATUSEX()
-            stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
-            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
-            total_mb = stat.ullTotalPhys / (1024 * 1024)
-            avail_mb = stat.ullAvailPhys / (1024 * 1024)
-            used_mb = total_mb - avail_mb
-            load_percent = stat.dwMemoryLoad
-            return total_mb, avail_mb, used_mb, load_percent
-    except Exception:
-        pass
-    return 0.0, 0.0, 0.0, 0
 
 def format_size_str(mb_val):
     """容量單位動態轉換：大於等於 1024 MB 轉換為 GB 顯示，否則顯示 MB"""
@@ -62,7 +32,7 @@ def get_portable_config_dir():
 
 class CONFIG:
     APP_NAME = "本機系統快取清理與記憶體優化工具"
-    VERSION = "v3.0 (全能極速便攜版)"
+    VERSION = "v4.0 (三層安全與架構純化版)"
     
     DEFAULT_CPU_THRESHOLD = 80.0
     DEFAULT_PROCESS_RAM_LIMIT = 500
@@ -174,4 +144,3 @@ def save_protected_keywords(keywords_list):
         return True
     except Exception:
         return False
-

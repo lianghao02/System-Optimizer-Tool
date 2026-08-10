@@ -98,6 +98,78 @@ class PreviewDialog(ctk.CTkToplevel):
         self.destroy()
         self.on_confirm_callback()
 
+class ResidualsPreviewDialog(ctk.CTkToplevel):
+    def __init__(self, parent, software_name, candidates, on_confirm_delete_callback):
+        super().__init__(parent)
+        self.title(f"🔍 卸載深層殘留確認 - {software_name}")
+        self.geometry("780x520")
+        self.software_name = software_name
+        self.candidates = candidates
+        self.on_confirm_delete_callback = on_confirm_delete_callback
+        self.check_vars = {}
+
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.transient(parent)
+        self.grab_set()
+
+        self.build_ui()
+
+    def build_ui(self):
+        lbl_title = ctk.CTkLabel(
+            self, text=f"🔍 【{self.software_name}】官方卸載完成 - 偵測到 {len(self.candidates)} 個疑似深層殘留資料夾",
+            font=ctk.CTkFont(family="Microsoft JhengHei", size=14, weight="bold"), text_color=CONFIG.THEME["PRIMARY"]
+        )
+        lbl_title.pack(anchor="w", padx=20, pady=(15, 4))
+
+        lbl_desc = ctk.CTkLabel(
+            self, text="💡 安全防禦提示：預設僅會自動勾選 🟢 高可信度 (>=90%) 項目。請您審視下列候選資料夾後，確認勾選欲清理的項目。",
+            font=ctk.CTkFont(family="Microsoft JhengHei", size=11), text_color=CONFIG.THEME["TEXT_MUTED"]
+        )
+        lbl_desc.pack(anchor="w", padx=20, pady=(0, 10))
+
+        scroll_frame = ctk.CTkScrollableFrame(self, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=8)
+        scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+
+        for idx, item in enumerate(self.candidates):
+            row = ctk.CTkFrame(scroll_frame, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
+            row.pack(fill="x", pady=4)
+
+            var = ctk.BooleanVar(value=item["auto_check"])
+            self.check_vars[idx] = (var, item)
+
+            chk = ctk.CTkCheckBox(row, text="", variable=var, width=28, checkbox_width=18, checkbox_height=18)
+            chk.pack(side="left", padx=(10, 5), pady=10)
+
+            lbl_conf = ctk.CTkLabel(row, text=item["confidence_label"], font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"), width=160)
+            lbl_conf.pack(side="left", padx=5)
+
+            info_f = ctk.CTkFrame(row, fg_color="transparent")
+            info_f.pack(side="left", fill="both", expand=True, padx=5, pady=6)
+
+            ctk.CTkLabel(info_f, text=f"📂 路徑：{item['path']}", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"), text_color=CONFIG.THEME["TEXT_LIGHT"], anchor="w").pack(anchor="w")
+            ctk.CTkLabel(info_f, text=f"容量大小：{item['size_fmt']} | 匹配得分：{item['score']} 分", font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["TEXT_MUTED"], anchor="w").pack(anchor="w")
+
+        frame_btns = ctk.CTkFrame(self, fg_color="transparent")
+        frame_btns.pack(fill="x", padx=20, pady=(0, 15))
+
+        btn_cancel = ctk.CTkButton(
+            frame_btns, text="🛑 放棄不刪除", fg_color=CONFIG.THEME["CARD_BG"],
+            hover_color=CONFIG.THEME["DANGER"], text_color=CONFIG.THEME["TEXT_LIGHT"], command=self.destroy
+        )
+        btn_cancel.pack(side="right", padx=5)
+
+        btn_confirm = ctk.CTkButton(
+            frame_btns, text="🗑️ 清除已勾選殘留資料夾", fg_color=CONFIG.THEME["DANGER"],
+            hover_color="#C0392B", text_color=CONFIG.THEME["TEXT_LIGHT"], command=self._on_confirm
+        )
+        btn_confirm.pack(side="right", padx=5)
+
+    def _on_confirm(self):
+        selected_paths = [item["path"] for var, item in self.check_vars.values() if var.get()]
+        self.destroy()
+        self.on_confirm_delete_callback(selected_paths)
+
 class AddCustomScriptDialog(ctk.CTkToplevel):
     def __init__(self, parent, on_add_callback):
         super().__init__(parent)
