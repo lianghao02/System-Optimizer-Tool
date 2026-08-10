@@ -22,11 +22,13 @@ from tkinter import messagebox, scrolledtext
 
 from engine.config import CONFIG, format_size_str, load_protected_keywords, save_protected_keywords
 from engine.memory import MemoryEngine, get_system_ram_info
+from engine.cache_rules import CacheRuleRegistry
+from engine.storage_analyzer import StorageAnalyzerEngine
 from engine.cache_inspector import CacheInspectorEngine
 from engine.optimizer import OptimizerEngine
 from engine.boot import BootOptimizerEngine
 from engine.uninstaller import UninstallerEngine
-from ui.dialogs import PreviewDialog, ResidualsPreviewDialog, AddCustomScriptDialog
+from ui.dialogs import PreviewDialog, ResidualsPreviewDialog, AddCustomScriptDialog, StorageAnalyzerDialog
 
 # ==============================================================================
 # 系統優化主程式 UI (CustomTkinter 介面)
@@ -234,6 +236,15 @@ class SystemOptimizerApp(ctk.CTk):
         )
         self.ram_slider.pack(fill="x", padx=10, pady=4)
 
+        ctk.CTkFrame(scroll_left, fg_color=CONFIG.THEME["BG_DARK"], height=2).pack(fill="x", padx=10, pady=8)
+
+        btn_storage_analyzer = ctk.CTkButton(
+            scroll_left, text="📊 啟動全碟儲存空間分析器 (巨型檔/重複檔/Downloads健檢)", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            fg_color=CONFIG.THEME["ACCENT"], hover_color="#8B5CF6", height=36,
+            command=self._launch_storage_analyzer_modal
+        )
+        btn_storage_analyzer.pack(fill="x", padx=10, pady=(4, 8))
+
         # 右側 Console 面板
         right_panel = ctk.CTkFrame(main_container, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10)
         right_panel.pack(side="right", fill="both", expand=True)
@@ -255,6 +266,17 @@ class SystemOptimizerApp(ctk.CTk):
         def _bg_trim():
             MemoryEngine.trim_working_set(self.append_log)
         threading.Thread(target=_bg_trim, daemon=True).start()
+
+    def _launch_storage_analyzer_modal(self):
+        """啟動全碟儲存空間診斷對話框 (巨型檔 / 長期未使用 / 三階段 SHA-256 重複檔 / Downloads 健檢)"""
+        self.append_log("📊 [全碟空間診斷] 開始收集巨型檔案、長期未使用檔案、SHA-256 重複檔案與 Downloads 健檢資料...", CONFIG.THEME["PRIMARY"])
+        def _bg_scan():
+            large_files = StorageAnalyzerEngine.analyze_large_files(self.append_log, min_size_mb=500.0)
+            aged_files = StorageAnalyzerEngine.analyze_aged_files(self.append_log, min_size_mb=100.0, min_days=180)
+            dup_groups = StorageAnalyzerEngine.analyze_duplicate_files(self.append_log)
+            dl_health = StorageAnalyzerEngine.analyze_downloads_health(self.append_log)
+            self.after(0, lambda: StorageAnalyzerDialog(self, large_files, aged_files, dup_groups, dl_health))
+        threading.Thread(target=_bg_scan, daemon=True).start()
 
     # --------------------------------------------------------------------------
     # 分頁 2：🚀 開機啟動資料夾直達 (Page Boot)

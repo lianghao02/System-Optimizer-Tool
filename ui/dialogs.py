@@ -4,8 +4,10 @@
 模組名稱：對話框與視窗模組 (ui/dialogs.py)
 """
 
+import os
+import subprocess
 import customtkinter as ctk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, messagebox
 from engine.config import CONFIG
 
 class PreviewDialog(ctk.CTkToplevel):
@@ -233,9 +235,145 @@ class AddCustomScriptDialog(ctk.CTkToplevel):
         delay = self.cmb_delay.get()
 
         if not name or not path:
-            from tkinter import messagebox
             messagebox.showwarning("欄位未完成", "請務必填寫「軟體名稱」與「執行檔路徑」！")
             return
 
         self.on_add_callback(name, path, args, delay)
         self.destroy()
+
+class StorageAnalyzerDialog(ctk.CTkToplevel):
+    def __init__(self, parent, large_files, aged_files, dup_groups, downloads_health):
+        super().__init__(parent)
+        self.title("📊 全碟儲存空間與分析儀表板 (v5.0 空間診斷專頁)")
+        self.geometry("880x620")
+        self.large_files = large_files
+        self.aged_files = aged_files
+        self.dup_groups = dup_groups
+        self.downloads_health = downloads_health
+
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.transient(parent)
+        self.grab_set()
+
+        self.build_ui()
+
+    def build_ui(self):
+        lbl_title = ctk.CTkLabel(
+            self, text="📊 全碟儲存空間診斷與分析報告 (100% 唯讀分析，預設不刪除)",
+            font=ctk.CTkFont(family="Microsoft JhengHei", size=15, weight="bold"), text_color=CONFIG.THEME["PRIMARY"]
+        )
+        lbl_title.pack(anchor="w", padx=20, pady=(15, 5))
+
+        tabview = ctk.CTkTabview(self, corner_radius=8)
+        tabview.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+
+        tab_large = tabview.add("🔍 巨型檔案 (>500MB)")
+        tab_aged = tabview.add("🕒 長期未使用 (>180天)")
+        tab_dup = tabview.add("👯 重複檔案 (SHA-256)")
+        tab_dl = tabview.add("📥 Downloads 健檢")
+
+        self._build_large_files_tab(tab_large)
+        self._build_aged_files_tab(tab_aged)
+        self._build_duplicates_tab(tab_dup)
+        self._build_downloads_tab(tab_dl)
+
+    def _build_large_files_tab(self, parent_tab):
+        scroll = ctk.CTkScrollableFrame(parent_tab, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        if not self.large_files:
+            ctk.CTkLabel(scroll, text="未發現任何 >500MB 之巨型檔案。", font=ctk.CTkFont(family="Microsoft JhengHei", size=12), text_color=CONFIG.THEME["TEXT_MUTED"]).pack(pady=20)
+            return
+
+        for item in self.large_files:
+            row = ctk.CTkFrame(scroll, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
+            row.pack(fill="x", pady=4)
+
+            info = ctk.CTkFrame(row, fg_color="transparent")
+            info.pack(side="left", fill="both", expand=True, padx=10, pady=8)
+
+            ctk.CTkLabel(info, text=f"📄 {item['name']} ({item['size_fmt']}) [{item['category']}]", font=ctk.CTkFont(family="Microsoft JhengHei", size=12, weight="bold"), text_color=CONFIG.THEME["TEXT_LIGHT"], anchor="w").pack(anchor="w")
+            ctk.CTkLabel(info, text=f"路徑：{item['path']} | 修改日期：{item['mtime_str']}", font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["TEXT_MUTED"], anchor="w").pack(anchor="w")
+
+            btn_open = ctk.CTkButton(row, text="📂 開啟位置", width=90, command=lambda p=item['path']: self._open_file_location(p))
+            btn_open.pack(side="right", padx=10, pady=8)
+
+    def _build_aged_files_tab(self, parent_tab):
+        scroll = ctk.CTkScrollableFrame(parent_tab, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        if not self.aged_files:
+            ctk.CTkLabel(scroll, text="未發現 >100MB 且超過 180 天未修改之檔案。", font=ctk.CTkFont(family="Microsoft JhengHei", size=12), text_color=CONFIG.THEME["TEXT_MUTED"]).pack(pady=20)
+            return
+
+        for item in self.aged_files:
+            row = ctk.CTkFrame(scroll, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
+            row.pack(fill="x", pady=4)
+
+            info = ctk.CTkFrame(row, fg_color="transparent")
+            info.pack(side="left", fill="both", expand=True, padx=10, pady=8)
+
+            ctk.CTkLabel(info, text=f"🕒 {item['name']} ({item['size_fmt']}) - {item['age_tier']}", font=ctk.CTkFont(family="Microsoft JhengHei", size=12, weight="bold"), text_color=CONFIG.THEME["WARNING"], anchor="w").pack(anchor="w")
+            ctk.CTkLabel(info, text=f"路徑：{item['path']} | 未修改天數：{item['days_unused']} 天 ({item['aged_label']})", font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["TEXT_MUTED"], anchor="w").pack(anchor="w")
+
+            btn_open = ctk.CTkButton(row, text="📂 開啟位置", width=90, command=lambda p=item['path']: self._open_file_location(p))
+            btn_open.pack(side="right", padx=10, pady=8)
+
+    def _build_duplicates_tab(self, parent_tab):
+        scroll = ctk.CTkScrollableFrame(parent_tab, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        if not self.dup_groups:
+            ctk.CTkLabel(scroll, text="未發現 100% SHA-256 雜湊內容相同之重複檔案。", font=ctk.CTkFont(family="Microsoft JhengHei", size=12), text_color=CONFIG.THEME["TEXT_MUTED"]).pack(pady=20)
+            return
+
+        for group in self.dup_groups:
+            card = ctk.CTkFrame(scroll, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
+            card.pack(fill="x", pady=6, padx=5)
+
+            ctk.CTkLabel(card, text=f"👯 重複群組 (SHA-256: {group['sha256']}) - 單檔: {group['file_size_fmt']} | 可省空間: {group['waste_fmt']}", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"), text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=10, pady=(6, 4))
+
+            for path in group["paths"]:
+                row = ctk.CTkFrame(card, fg_color="transparent")
+                row.pack(fill="x", padx=10, pady=2)
+                ctk.CTkLabel(row, text=f"📄 {path}", font=ctk.CTkFont(family="Microsoft JhengHei", size=10), text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left")
+                btn_open = ctk.CTkButton(row, text="📂 開啟", width=60, height=22, command=lambda p=path: self._open_file_location(p))
+                btn_open.pack(side="right")
+
+    def _build_downloads_tab(self, parent_tab):
+        scroll = ctk.CTkScrollableFrame(parent_tab, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        old_inst = self.downloads_health.get("old_installers", [])
+        red_arch = self.downloads_health.get("redundant_archives", [])
+
+        if not old_inst and not red_arch:
+            ctk.CTkLabel(scroll, text="Downloads 資料夾狀態極佳！未發現舊軟體安裝檔或冗餘壓縮檔。", font=ctk.CTkFont(family="Microsoft JhengHei", size=12), text_color=CONFIG.THEME["TEXT_MUTED"]).pack(pady=20)
+            return
+
+        if old_inst:
+            ctk.CTkLabel(scroll, text="📦 舊版軟體安裝檔候選 (>180天)", font=ctk.CTkFont(family="Microsoft JhengHei", size=12, weight="bold"), text_color=CONFIG.THEME["WARNING"]).pack(anchor="w", padx=10, pady=(10, 4))
+            for item in old_inst:
+                row = ctk.CTkFrame(scroll, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
+                row.pack(fill="x", pady=3)
+                ctk.CTkLabel(row, text=f"📄 {item['name']} ({item['size_fmt']}) - 存放 {item['days_old']} 天", font=ctk.CTkFont(family="Microsoft JhengHei", size=11), text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left", padx=10)
+                btn_open = ctk.CTkButton(row, text="📂 開啟", width=60, height=22, command=lambda p=item['path']: self._open_file_location(p))
+                btn_open.pack(side="right", padx=6)
+
+        if red_arch:
+            ctk.CTkLabel(scroll, text="📦 冗餘壓縮檔 (同名資料夾已存在於 Downloads)", font=ctk.CTkFont(family="Microsoft JhengHei", size=12, weight="bold"), text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=10, pady=(15, 4))
+            for item in red_arch:
+                row = ctk.CTkFrame(scroll, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
+                row.pack(fill="x", pady=3)
+                ctk.CTkLabel(row, text=f"📦 {item['name']} ({item['size_fmt']}) -> 發現資料夾 [{item['matched_folder']}]", font=ctk.CTkFont(family="Microsoft JhengHei", size=11), text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left", padx=10)
+                btn_open = ctk.CTkButton(row, text="📂 開啟", width=60, height=22, command=lambda p=item['path']: self._open_file_location(p))
+                btn_open.pack(side="right", padx=6)
+
+    def _open_file_location(self, file_path):
+        try:
+            if os.path.exists(file_path):
+                subprocess.Popen(f'explorer.exe /select,"{file_path}"', shell=True)
+            else:
+                messagebox.showwarning("檔案不存在", f"該檔案已移動或不存在：{file_path}")
+        except Exception as e:
+            messagebox.showerror("開啟失敗", f"無法開啟位置: {str(e)}")
