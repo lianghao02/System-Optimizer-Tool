@@ -1,0 +1,16 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local environment and configurations
+.env
+.env.local
+config/*.json
+config/backup_shortcuts/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
