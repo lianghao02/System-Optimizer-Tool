@@ -165,9 +165,9 @@ class UninstallerEngine:
                             dir_mb = dir_size / (1024 * 1024)
 
                             # 評定可信度分級
-                            if score >= 80:
+                            if score >= 90:
                                 confidence_label = "🟢 高可信 (>=90%)"
-                            elif score >= 60:
+                            elif score >= 70:
                                 confidence_label = "🟡 建議確認 (70-89%)"
                             else:
                                 confidence_label = "🔴 低可信 (<70%)"
@@ -178,7 +178,7 @@ class UninstallerEngine:
                                 "size_fmt": format_size_str(dir_mb),
                                 "score": score,
                                 "confidence_label": confidence_label,
-                                "auto_check": bool(score >= 80)  # 僅有高可信度才會預設勾選
+                                "auto_check": bool(score >= 90)  # 僅有高可信度才會預設勾選
                             })
             except: pass
 

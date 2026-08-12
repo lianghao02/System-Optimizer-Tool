@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-專案名稱：本機系統快取清理與記憶體優化工具 (System Optimizer Tool) - v4.0 架構純化與三層安全版
+專案名稱：本機系統快取清理與記憶體優化工具 (System Optimizer Tool) - v5.0 全碟診斷與宣告式規則表版
 主要功能：
-  1. 🧹 快取與記憶體清理：三層安全分級 (🟢安全清理 / 🟡可重建快取 / 🔴進階操作)、大型快取分析器 (Inspector)。
+  1. 📊 全碟儲存空間診斷：巨型檔案分析、長期未使用檔案檢測、三階段 SHA-256 重複檔案分析與 Downloads 健檢。
+  2. 🧹 快取與記憶體清理：三層安全分級 (🟢安全清理 / 🟡可重建快取 / 🔴進階操作)、大型快取分析器 (Inspector)。
   2. 💾 Working Set 分頁暫時釋放 & 程序獨立管理 (純粹解耦於 engine/memory.py)。
   3. 🚀 開機資料夾直達：雙層 Startup 原生開機資料夾直連與快捷指南。
   4. 🗑️ 軟體徹底卸載：多維度信心分數殘留掃蕩與取消驗證安全防護。
@@ -476,12 +477,18 @@ class SystemOptimizerApp(ctk.CTk):
 
         def _do_real_delete_residuals(selected_paths):
             deleted_count = 0
+            failed_paths = []
             for path in selected_paths:
                 try:
-                    shutil.rmtree(path, ignore_errors=True)
+                    shutil.rmtree(path)
                     deleted_count += 1
-                except: pass
-            messagebox.showinfo("殘留清理完成", f"🎉 成功刪除 {deleted_count} 個深層殘留資料夾！")
+                except Exception:
+                    failed_paths.append(path)
+
+            result_message = f"成功刪除 {deleted_count} 個深層殘留資料夾。"
+            if failed_paths:
+                result_message += f"\n\n⚠️ {len(failed_paths)} 個項目未能刪除，可能仍被使用或權限不足：\n" + "\n".join(failed_paths)
+            messagebox.showinfo("殘留清理完成", result_message)
             self.load_uninstall_software_list()
 
         ResidualsPreviewDialog(self, sw_name, candidates, _do_real_delete_residuals)

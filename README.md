@@ -1,6 +1,6 @@
 # 🚀 本機系統快取清理與記憶體優化工具 (System Optimizer Tool)
 
-![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue.svg)
+![Python Version](https://img.shields.io/badge/Python-3.13-blue.svg)
 ![UI Framework](https://img.shields.io/badge/UI-CustomTkinter-blueviolet.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Version](https://img.shields.io/badge/Version-v5.0-success.svg)
@@ -98,9 +98,11 @@ System-Optimizer-Tool/
 雙擊專案目錄下的 **`啟動工具.bat`** 或 **`run.bat`** 即可直接開啟軟體介面（自動檢測並安裝所需套件）。
 
 ### 2. 手動指令啟動
+本專案以 **Python 3.13** 作為主要開發與驗證版本。
+
 ```bash
-pip install customtkinter
-python main.py
+C:\Users\chia-hao\AppData\Local\Programs\Python\Python313\python.exe -m pip install customtkinter
+C:\Users\chia-hao\AppData\Local\Programs\Python\Python313\python.exe main.py
 ```
 
 ---

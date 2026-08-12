@@ -190,7 +190,7 @@ class StorageAnalyzerEngine:
                             h.update(chunk)
                     full_hash_dict.setdefault(h.hexdigest(), []).append(path)
                 except: pass
-            for sha, paths in full_hash_dict.values():
+            for sha, paths in full_hash_dict.items():
                 if len(paths) > 1:
                     sz = os.path.getsize(paths[0])
                     waste_mb = (len(paths) - 1) * (sz / (1024 * 1024))
