@@ -165,10 +165,13 @@ class MemoryEngine:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             mem_mb = get_process_working_set_mb(pid)
-            res = subprocess.run(f"taskkill /F /PID {pid}", startupinfo=startupinfo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            res = subprocess.run(["taskkill", "/PID", str(pid)], startupinfo=startupinfo, capture_output=True, text=True)
             if res.returncode == 0:
                 log_callback(f"❌ 已手動結束程序：{proc_name} (PID: {pid}) 釋放約 {mem_mb:.1f} MB", CONFIG.THEME["DANGER"])
                 return True, mem_mb
+            else:
+                err_msg = res.stderr.strip() if res.stderr else "存取被拒絕"
+                log_callback(f"⚠️ 結束程序 {proc_name} (PID: {pid}) 失敗: {err_msg} (可能需要以系統管理員身分執行)", CONFIG.THEME["WARNING"])
         except Exception as e:
             log_callback(f"⚠️ 結束程序 PID {pid} 失敗: {str(e)}", CONFIG.THEME["WARNING"])
         return False, 0.0

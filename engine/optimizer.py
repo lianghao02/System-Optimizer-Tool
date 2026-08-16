@@ -39,7 +39,16 @@ class OptimizerEngine:
                     except Exception: failed_count += 1
                         
         if dry_run: return pending_files
-        else: return deleted_bytes, deleted_count, failed_count
+        else:
+            if deleted_count > 0:
+                try:
+                    for root, dirs, files in os.walk(target_dir, topdown=False):
+                        if root != target_dir:
+                            try:
+                                if not os.listdir(root): os.rmdir(root)
+                            except Exception: pass
+                except Exception: pass
+            return deleted_bytes, deleted_count, failed_count
 
     # --------------------------------------------------------------------------
     # 🟢 第一層：安全清理 (Safe Cleaning - 預設勾選)

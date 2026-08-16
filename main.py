@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-專案名稱：本機系統快取清理與記憶體優化工具 (System Optimizer Tool) - v5.0 全碟診斷與宣告式規則表版
+專案名稱：本機系統快取清理與記憶體優化工具 (System Optimizer Tool) - v5.0.1 全碟診斷與宣告式規則表版
 主要功能：
   1. 📊 全碟儲存空間診斷：巨型檔案分析、長期未使用檔案檢測、三階段 SHA-256 重複檔案分析與 Downloads 健檢。
   2. 🧹 快取與記憶體清理：三層安全分級 (🟢安全清理 / 🟡可重建快取 / 🔴進階操作)、大型快取分析器 (Inspector)。
@@ -386,6 +386,201 @@ class SystemOptimizerApp(ctk.CTk):
     def load_uninstall_software_list(self):
         for widget in self.scroll_uninstall.winfo_children(): widget.destroy()
         ctk.CTkLabel(self.scroll_uninstall, text="⏳ 正在盤點 Windows 已安裝軟體庫，請稍候...", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=15, pady=15)
+
+        def _bg_load():
+            sw_list = UninstallerEngine.get_installed_software_list()
+            self.after(0, lambda: self._on_software_list_loaded(sw_list))
+        threading.Thread(target=_bg_load, daemon=True).start()
+
+    def _on_software_list_loaded(self, sw_list):
+        self.cached_installed_software = sw_list
+        self.render_software_list()
+
+    def _on_sw_search_change(self, event=None):
+        self.render_software_list()
+
+    def render_software_list(self):
+        for widget in self.scroll_uninstall.winfo_children(): widget.destroy()
+        if not self.cached_installed_software:
+            ctk.CTkLabel(self.scroll_uninstall, text="未找到任何已安裝的第三方軟體。", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=15, pady=15)
+            return
+
+        kw = self.entry_sw_search.get().strip().lower()
+        hide_sys = self.var_hide_sys_components.get()
+
+        filtered = [
+            it for it in self.cached_installed_software
+            if (not hide_sys or not it["is_system"]) and (not kw or kw in it["name"].lower() or kw in it["publisher"].lower())
+        ]
+
+        ctk.CTkLabel(self.scroll_uninstall, text=f"📊 共定位 {len(filtered)} 個已安裝應用軟體", font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=15, pady=(10, 6))
+
+        for item in filtered:
+            row = ctk.CTkFrame(self.scroll_uninstall, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+            row.pack(fill="x", padx=15, pady=4)
+
+            info_frame = ctk.CTkFrame(row, fg_color="transparent")
+            info_frame.pack(side="left", fill="both", expand=True, padx=12, pady=8)
+
+            title_text = f"📦 {item['name']}"
+            if item["is_system"]: title_text += " [系統/驅動元件]"
+            ctk.CTkLabel(info_frame, text=title_text, font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"], anchor="w").pack(anchor="w")
+
+            meta_text = f"發行商：{item['publisher']} | 容量：{format_size_str(item['size_mb'])} | 安裝日期：{item['install_date'] if item['install_date'] else '未知'}"
+            ctk.CTkLabel(info_frame, text=meta_text, font=ctk.CTkFont(family="Microsoft JhengHei", size=11), text_color=CONFIG.THEME["TEXT_MUTED"], anchor="w").pack(anchor="w", pady=(2, 0))
+
+            btn_uninstall = ctk.CTkButton(
+                row, text="🗑️ 卸載軟體", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+                width=110, fg_color=CONFIG.THEME["DANGER"], hover_color="#C0392B",
+                command=lambda it=item: self._uninstall_software_flow(it)
+            )
+            btn_uninstall.pack(side="right", padx=10, pady=10)
+
+            btn_open_loc = ctk.CTkButton(
+                row, text="📂 安裝位置", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+                width=100, fg_color=CONFIG.THEME["CARD_BG"], hover_color=CONFIG.THEME["PRIMARY"],
+                command=lambda it=item: self._open_software_install_location(it)
+            )
+            btn_open_loc.pack(side="right", padx=(5, 0), pady=10)
+
+    def _open_software_install_location(self, item):
+        ok, msg = UninstallerEngine.open_install_location(item)
+        if not ok:
+            messagebox.showwarning("無法開啟位置", msg)
+
+    def _uninstall_software_flow(self, item):
+        sw_name = item["name"]
+        un_cmd = item["uninstall_string"]
+        inst_loc = item["install_location"]
+        publisher = item["publisher"]
+
+        if not messagebox.askyesno("確認卸載軟體", f"即將呼叫官方卸載程式進行卸載：\n\n【{sw_name}】\n發行商：{publisher}\n\n確定開始卸載嗎？"):
+            return
+
+        ok, msg = UninstallerEngine.execute_uninstall_command(un_cmd)
+        if not ok:
+            messagebox.showerror("卸載呼叫失敗", msg)
+            return
+
+        # 關鍵安全防護：防護使用者取消官方卸載時誤刪資料
+        still_exists = UninstallerEngine.is_software_still_installed(sw_name)
+        if still_exists:
+            messagebox.showinfo("卸載未完成", f"官方卸載精靈已被取消或並未真正完成。\n\n【{sw_name}】依然登記於系統註冊表中，已安全終止後續殘留掃蕩。")
+            return
+
+        # 多維度信心分數殘留資料夾預覽
+        candidates = UninstallerEngine.scan_appdata_leftovers_with_confidence(sw_name, publisher, inst_loc)
+        if not candidates:
+            messagebox.showinfo("殘留掃蕩結果", f"✅ 【{sw_name}】環境極度乾淨，未發現任何深層殘留資料夾！")
+            self.load_uninstall_software_list()
+            return
+
+        def _do_real_delete_residuals(selected_paths):
+            deleted_count = 0
+            failed_paths = []
+            for path in selected_paths:
+                try:
+                    shutil.rmtree(path)
+                    deleted_count += 1
+                except Exception:
+                    failed_paths.append(path)
+
+            result_message = f"成功刪除 {deleted_count} 個深層殘留資料夾。"
+            if failed_paths:
+                result_message += f"\n\n⚠️ {len(failed_paths)} 個項目未能刪除，可能仍被使用或權限不足：\n" + "\n".join(failed_paths)
+            messagebox.showinfo("殘留清理完成", result_message)
+            self.load_uninstall_software_list()
+
+        ResidualsPreviewDialog(self, sw_name, candidates, _do_real_delete_residuals)
+
+    # --------------------------------------------------------------------------
+    # 分頁 4：⚙️ 設定與保護白名單 (Page Settings)
+    # --------------------------------------------------------------------------
+    def build_page_settings(self):
+        page = ctk.CTkFrame(self.page_container, fg_color="transparent")
+        self.pages["settings"] = page
+
+        scroll_set = ctk.CTkScrollableFrame(page, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10)
+        scroll_set.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(scroll_set, text="⚙️ 工具設定與保護白名單管理", font=self.title_font, text_color=CONFIG.THEME["PRIMARY"]).pack(anchor="w", padx=20, pady=(20, 4))
+        ctk.CTkLabel(scroll_set, text="💡 提示：本區用於管理清理防禦白名單關鍵字。凡檔名或目錄包含此白名單關鍵字者，工具將 100% 絕對防護跳過不予清理。", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=20, pady=(0, 15))
+
+        card_add = ctk.CTkFrame(scroll_set, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=8)
+        card_add.pack(fill="x", padx=20, pady=(0, 15))
+
+        ctk.CTkLabel(card_add, text="➕ 新增保護關鍵字：", font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left", padx=15, pady=15)
+        self.entry_add_kw = ctk.CTkEntry(card_add, placeholder_text="例如：my_backup / project_a", width=260)
+        self.entry_add_kw.pack(side="left", padx=5, pady=15)
+
+        btn_add_kw = ctk.CTkButton(
+            card_add, text="加入白名單", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
+            fg_color=CONFIG.THEME["SUCCESS"], hover_color="#27AE60", width=110,
+            command=self._add_whitelist_keyword
+        )
+        btn_add_kw.pack(side="left", padx=10, pady=15)
+
+        for kw in curr_keywords:
+            tag_frame = ctk.CTkFrame(self.frame_whitelist_tags, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+            tag_frame.pack(side="left", padx=4, pady=4)
+            ctk.CTkLabel(tag_frame, text=f"🛡️ {kw}", font=self.default_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left", padx=(10, 5), pady=6)
+            btn_del = ctk.CTkButton(
+                tag_frame, text="❌", width=22, height=22, fg_color="transparent",
+                hover_color=CONFIG.THEME["DANGER"], text_color=CONFIG.THEME["TEXT_MUTED"],
+                command=lambda k=kw: self._remove_whitelist_keyword(k)
+            )
+            btn_del.pack(side="left", padx=(0, 6), pady=6)
+
+    def _add_whitelist_keyword(self):
+        kw = self.entry_add_kw.get().strip()
+        if not kw:
+            messagebox.showwarning("欄位空白", "請輸入要保護的關鍵字！")
+            return
+        curr = load_protected_keywords()
+        if kw.lower() in [k.lower() for k in curr]:
+            messagebox.showinfo("關鍵字已存在", f"白名單中已包含此保護關鍵字：{kw}")
+            return
+        curr.append(kw)
+        save_protected_keywords(curr)
+        self.entry_add_kw.delete(0, "end")
+        self.refresh_whitelist_ui()
+        messagebox.showinfo("新增成功", f"已成功新增保護關鍵字：{kw}")
+
+    # 分頁 3：🗑️ 軟體徹底卸載 (Page Uninstall)
+    # --------------------------------------------------------------------------
+    def build_page_uninstall(self):
+        page = ctk.CTkFrame(self.page_container, fg_color="transparent")
+        self.pages["uninstall"] = page
+
+        top_bar = ctk.CTkFrame(page, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10)
+        top_bar.pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(top_bar, text="🗑️ Windows 軟體徹底卸載庫", font=self.title_font, text_color=CONFIG.THEME["PRIMARY"]).pack(side="left", padx=15, pady=12)
+
+        self.entry_sw_search = ctk.CTkEntry(top_bar, placeholder_text="🔍 搜尋已安裝軟體名稱...", width=240)
+        self.entry_sw_search.pack(side="left", padx=10, pady=10)
+        self.entry_sw_search.bind("<KeyRelease>", self._on_sw_search_change)
+
+        chk_hide_sys = ctk.CTkCheckBox(
+            top_bar, text="🛡️ 隱藏系統必備與驅動元件", variable=self.var_hide_sys_components,
+            font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"], command=self.render_software_list
+        )
+        chk_hide_sys.pack(side="left", padx=10, pady=10)
+
+        btn_refresh_sw = ctk.CTkButton(
+            top_bar, text="🔄 重新整理", width=90, fg_color=CONFIG.THEME["PRIMARY"],
+            hover_color=CONFIG.THEME["PRIMARY_HOVER"], command=self.load_uninstall_software_list
+        )
+        btn_refresh_sw.pack(side="right", padx=15, pady=10)
+
+        self.scroll_uninstall = ctk.CTkScrollableFrame(page, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=10)
+        self.scroll_uninstall.pack(fill="both", expand=True)
+
+        self.load_uninstall_software_list()
+
+    def load_uninstall_software_list(self):
+        for widget in self.scroll_uninstall.winfo_children(): widget.destroy()
+        ctk.CTkLabel(self.scroll_uninstall, text="⏳ 正在盤點 Windows 已安裝軟體庫，請稍候...", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w", padx=15, pady=15)
         
         def _bg_load():
             sw_list = UninstallerEngine.get_installed_software_list()
@@ -520,27 +715,6 @@ class SystemOptimizerApp(ctk.CTk):
         )
         btn_add_kw.pack(side="left", padx=10, pady=15)
 
-        btn_reset_kw = ctk.CTkButton(
-            card_add, text="🔄 恢復預設值", font=ctk.CTkFont(family="Microsoft JhengHei", size=11, weight="bold"),
-            fg_color=CONFIG.THEME["CARD_BG"], hover_color=CONFIG.THEME["DANGER"], width=110,
-            command=self._reset_whitelist_keywords
-        )
-        btn_reset_kw.pack(side="right", padx=15, pady=15)
-
-        ctk.CTkLabel(scroll_set, text="🔒 當前保護白名單清單", font=self.sec_title_font, text_color=CONFIG.THEME["SUCCESS"]).pack(anchor="w", padx=20, pady=(5, 6))
-
-        self.frame_whitelist_tags = ctk.CTkFrame(scroll_set, fg_color="transparent")
-        self.frame_whitelist_tags.pack(fill="x", padx=20, pady=5)
-
-        self.refresh_whitelist_ui()
-
-    def refresh_whitelist_ui(self):
-        for widget in self.frame_whitelist_tags.winfo_children(): widget.destroy()
-        curr_keywords = load_protected_keywords()
-        if not curr_keywords:
-            ctk.CTkLabel(self.frame_whitelist_tags, text="白名單清單為空。", font=self.default_font, text_color=CONFIG.THEME["TEXT_MUTED"]).pack(anchor="w")
-            return
-
         for kw in curr_keywords:
             tag_frame = ctk.CTkFrame(self.frame_whitelist_tags, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
             tag_frame.pack(side="left", padx=4, pady=4)
@@ -628,6 +802,20 @@ class SystemOptimizerApp(ctk.CTk):
         is_dry_run = self.var_dry_run.get()
         selected_depth_str = self.var_scan_depth.get()
         max_depth = CONFIG.SCAN_DEPTH_OPTIONS.get(selected_depth_str, 1)
+        selected_actions = {
+            "clean_temp": self.var_clean_temp.get(),
+            "clean_crash_wer": self.var_clean_crash_wer.get(),
+            "clean_delivery_opt": self.var_clean_delivery_opt.get(),
+            "clean_pkg_caches": self.var_clean_pkg_caches.get(),
+            "clean_browser": self.var_clean_browser.get(),
+            "clean_apps": self.var_clean_apps.get(),
+            "clean_shader": self.var_clean_shader.get(),
+            "clean_thumbnail": self.var_clean_thumbnail.get(),
+            "smart_scan": self.var_smart_scan.get(),
+            "clean_prefetch": self.var_clean_prefetch.get(),
+            "kill_zombie": self.var_kill_zombie.get(),
+            "ram_limit": self.var_ram_limit.get(),
+        }
 
         def _update_progress(val):
             self.after(0, lambda: self.progress_bar.set(val))
@@ -639,58 +827,58 @@ class SystemOptimizerApp(ctk.CTk):
                 pending_files = []; pending_pids = []; freed_ram_from_procs = 0.0
 
                 # 🟢 第一層：安全清理
-                if self.var_clean_temp.get():
+                if selected_actions["clean_temp"]:
                     res = OptimizerEngine.clean_temp_cache(self.append_log, CONFIG.TEMP_DIR, max_depth=max_depth, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.2)
 
-                if self.var_clean_crash_wer.get():
+                if selected_actions["clean_crash_wer"]:
                     res = OptimizerEngine.clean_crash_dumps_and_wer(self.append_log, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.3)
 
-                if self.var_clean_delivery_opt.get():
+                if selected_actions["clean_delivery_opt"]:
                     res = OptimizerEngine.clean_delivery_optimization(self.append_log, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.4)
 
-                if self.var_clean_pkg_caches.get():
+                if selected_actions["clean_pkg_caches"]:
                     res = OptimizerEngine.clean_pkg_caches(self.append_log, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.5)
 
-                if self.var_clean_browser.get():
+                if selected_actions["clean_browser"]:
                     res = OptimizerEngine.clean_browser_cache(self.append_log, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.6)
 
                 # 🟡 第二層：可重建快取
-                if self.var_clean_apps.get():
+                if selected_actions["clean_apps"]:
                     res = OptimizerEngine.clean_app_cache(self.append_log, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.7)
 
-                if self.var_clean_shader.get():
+                if selected_actions["clean_shader"]:
                     res = OptimizerEngine.clean_shader_caches(self.append_log, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
 
-                if self.var_clean_thumbnail.get():
+                if selected_actions["clean_thumbnail"]:
                     res = OptimizerEngine.clean_thumbnail_cache(self.append_log, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
 
-                if self.var_smart_scan.get():
+                if selected_actions["smart_scan"]:
                     CacheInspectorEngine.inspect_large_caches(self.append_log, min_size_mb=50.0)
                 _update_progress(0.8)
 
                 # 🔴 第三層：進階項目 (Prefetch)
-                if self.var_clean_prefetch.get():
+                if selected_actions["clean_prefetch"]:
                     res = OptimizerEngine.clean_prefetch(self.append_log, CONFIG.PREFETCH_DIR, dry_run=is_dry_run)
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.9)
 
                 # 閒置進程關閉 (獨立勾選)
-                if self.var_kill_zombie.get():
-                    high_procs = MemoryEngine.inspect_high_ram_processes(ram_limit_mb=self.var_ram_limit.get())
+                if selected_actions["kill_zombie"]:
+                    high_procs = MemoryEngine.inspect_high_ram_processes(ram_limit_mb=selected_actions["ram_limit"])
                     if is_dry_run: pending_pids.extend(high_procs)
                     else:
                         for pid, proc_name, mem_mb in high_procs:
@@ -746,6 +934,16 @@ class SystemOptimizerApp(ctk.CTk):
         def _real_delete_thread(files, pids, avail_before, load_before):
             try:
                 self.append_log("\n⚡ 使用者授權完成，開始執行真實檔案清理與程序關閉...", CONFIG.THEME["DANGER"])
+
+                # 二次程序鎖定確認 (防範中途開啟軟體)
+                locked_procs = set()
+                for rule in CacheRuleRegistry.get_default_rules():
+                    is_locked, matched = CacheRuleRegistry.check_running_app_locks(rule)
+                    if is_locked:
+                        locked_procs.update(matched)
+                if locked_procs:
+                    self.append_log(f"⚠️ 偵測到應用程式中途啟動 ({', '.join(locked_procs)})，為保護資料完整性將為您安全自動跳過相關快取。", CONFIG.THEME["WARNING"])
+
                 deleted_count = 0; failed_count = 0; deleted_bytes = 0
                 for file_path in files:
                     try:
@@ -785,7 +983,6 @@ class SystemOptimizerApp(ctk.CTk):
                 self.after(0, lambda: self.btn_launch.configure(state="normal", text="⚡ 開始執行選定清理"))
                 self.after(2000, lambda: self.progress_bar.set(0))
 
-        threading.Thread(target=_thread_task, daemon=True).start()
 
 if __name__ == "__main__":
     try:

@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import ctypes
 import json
+import shlex
 if sys.platform.startswith('win'):
     import winreg
 
@@ -127,7 +128,7 @@ class BootOptimizerEngine:
                 target_path = cmd
 
             if target_path and os.path.exists(target_path):
-                subprocess.Popen(f'explorer.exe /select,"{target_path}"', shell=True)
+                subprocess.Popen(["explorer.exe", f"/select,{os.path.normpath(target_path)}"])
                 return True, f"已開啟檔案位置：{target_path}"
             elif target_path and os.path.exists(os.path.dirname(target_path)):
                 os.startfile(os.path.dirname(target_path))
@@ -374,11 +375,12 @@ class BootOptimizerEngine:
     @staticmethod
     def test_run_script(file_path, args_str=""):
         try:
-            if file_path.endswith('.py'):
-                cmd = f'python "{file_path}" {args_str}'
+            args = shlex.split(args_str, posix=False) if args_str else []
+            if file_path.lower().endswith('.py'):
+                cmd = [sys.executable, file_path, *args]
             else:
-                cmd = f'"{file_path}" {args_str}'
-            subprocess.Popen(cmd, shell=True)
+                cmd = [file_path, *args]
+            subprocess.Popen(cmd)
             return True, "腳本已成功在背景啟動！"
         except Exception as e:
             return False, str(e)

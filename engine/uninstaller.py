@@ -202,7 +202,7 @@ class UninstallerEngine:
                     target_path = raw
 
             if target_path and os.path.isfile(target_path):
-                subprocess.Popen(f'explorer.exe /select,"{target_path}"', shell=True)
+                subprocess.Popen(["explorer.exe", f"/select,{os.path.normpath(target_path)}"])
                 return True, f"已定位並開啟軟體檔案：{target_path}"
             elif target_path and os.path.isdir(target_path):
                 os.startfile(target_path)
@@ -213,12 +213,53 @@ class UninstallerEngine:
             return False, f"開啟失敗: {str(e)}"
 
     @staticmethod
-    def execute_uninstall_command(uninstall_string):
-        """呼叫官方卸載程式"""
+    def sanitize_uninstall_command(uninstall_string):
+        """清洗並防禦性解析 Registry 中的 UninstallString 指令，防範路徑空白與 Shell 注入"""
+        cmd_str = uninstall_string.strip()
+        if not cmd_str:
+            return []
+
+        # 處理具備雙引號包裹之執行檔路徑
+        if cmd_str.startswith('"'):
+            end_quote = cmd_str.find('"', 1)
+            if end_quote != -1:
+                exe = cmd_str[1:end_quote]
+                args = cmd_str[end_quote + 1:].strip()
+                try:
+                    import shlex
+                    return [exe] + (shlex.split(args) if args else [])
+                except Exception:
+                    return [exe] + (args.split() if args else [])
+
+        # 若無引號，嘗試搜尋第一個 .exe 結尾並核對檔案存在性
+        if '.exe' in cmd_str.lower():
+            idx = cmd_str.lower().find('.exe') + 4
+            possible_exe = cmd_str[:idx].strip()
+            if os.path.exists(possible_exe):
+                args = cmd_str[idx:].strip()
+                try:
+                    import shlex
+                    return [possible_exe] + (shlex.split(args) if args else [])
+                except Exception:
+                    return [possible_exe] + (args.split() if args else [])
+
         try:
+            import shlex
+            return shlex.split(cmd_str)
+        except Exception:
+            return cmd_str.split()
+
+    @staticmethod
+    def execute_uninstall_command(uninstall_string):
+        """呼叫官方卸載程式 (具備防禦性路徑清洗機制)"""
+        try:
+            parsed_cmd = UninstallerEngine.sanitize_uninstall_command(uninstall_string)
+            if not parsed_cmd:
+                return False, "卸載指令無效或空白。"
+
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            proc = subprocess.Popen(uninstall_string, startupinfo=startupinfo, shell=True)
+            proc = subprocess.Popen(parsed_cmd, startupinfo=startupinfo)
             proc.wait()  # 等待官方卸載程式結束
             return True, "官方卸載程式執行完畢。"
         except Exception as e:
