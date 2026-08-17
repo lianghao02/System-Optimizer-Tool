@@ -32,7 +32,7 @@ def get_portable_config_dir():
 
 class CONFIG:
     APP_NAME = "本機系統快取清理與記憶體優化工具"
-    VERSION = "v5.0.1 (全碟儲存空間分析與宣告式快取規則表版)"
+    VERSION = "v5.1.0 (全碟診斷與可攜環境版)"
     
     DEFAULT_CPU_THRESHOLD = 80.0
     DEFAULT_PROCESS_RAM_LIMIT = 500

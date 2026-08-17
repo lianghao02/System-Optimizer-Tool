@@ -244,7 +244,7 @@ class AddCustomScriptDialog(ctk.CTkToplevel):
 class StorageAnalyzerDialog(ctk.CTkToplevel):
     def __init__(self, parent, large_files, aged_files, dup_groups, downloads_health):
         super().__init__(parent)
-        self.title("📊 全碟儲存空間與分析儀表板 (v5.0.1 空間診斷專頁)")
+        self.title("📊 全碟儲存空間與分析儀表板 (v5.1.0 空間診斷專頁)")
         self.geometry("880x620")
         self.large_files = large_files
         self.aged_files = aged_files
