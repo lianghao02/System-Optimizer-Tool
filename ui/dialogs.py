@@ -13,7 +13,7 @@ from engine.config import CONFIG
 class PreviewDialog(ctk.CTkToplevel):
     def __init__(self, parent, pending_files, pending_pids, on_confirm_callback, on_cancel_callback=None):
         super().__init__(parent)
-        self.title("🔍 模擬模式 - 擬清理與處理程序預覽明細")
+        self.title("🔍 模擬模式 - 擬清理與背景程序預覽明細")
         self.geometry("750x500")
         self.on_confirm_callback = on_confirm_callback
         self.on_cancel_callback = on_cancel_callback
@@ -29,7 +29,7 @@ class PreviewDialog(ctk.CTkToplevel):
 
     def build_ui(self):
         lbl_title = ctk.CTkLabel(
-            self, text=f"📋 模擬預覽統計：擬清理 {len(self.pending_files)} 個檔案 / 擬關閉 {len(self.pending_pids)} 個閒置處理程序",
+            self, text=f"📋 模擬預覽統計：擬清理 {len(self.pending_files)} 個檔案 / 擬關閉 {len(self.pending_pids)} 個閒置程序",
             font=ctk.CTkFont(family="Microsoft JhengHei", size=14, weight="bold"), text_color=CONFIG.THEME["PRIMARY"]
         )
         lbl_title.pack(anchor="w", padx=15, pady=(15, 10))
@@ -75,9 +75,9 @@ class PreviewDialog(ctk.CTkToplevel):
         kw = keyword.lower()
         
         if pids:
-            self.txt_preview.insert("end", "=== 擬關閉之高佔用閒置處理程序 ===\n")
+            self.txt_preview.insert("end", "=== 擬關閉之高佔用閒置程序 ===\n")
             for pid, proc_name, mem_mb in pids:
-                line = f"[處理程序] {proc_name} (PID: {pid}) - 佔用 {mem_mb:.1f} MB RAM\n"
+                line = f"[程序] {proc_name} (PID: {pid}) - 佔用 {mem_mb:.1f} MB RAM\n"
                 if not kw or kw in line.lower():
                     self.txt_preview.insert("end", line)
             self.txt_preview.insert("end", "\n")
@@ -372,7 +372,7 @@ class StorageAnalyzerDialog(ctk.CTkToplevel):
     def _open_file_location(self, file_path):
         try:
             if os.path.exists(file_path):
-                subprocess.Popen(f'explorer.exe /select,"{file_path}"', shell=True)
+                subprocess.Popen(["explorer.exe", f"/select,{os.path.normpath(file_path)}"])
             else:
                 messagebox.showwarning("檔案不存在", f"該檔案已移動或不存在：{file_path}")
         except Exception as e:

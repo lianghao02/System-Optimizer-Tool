@@ -87,7 +87,7 @@ class SystemOptimizerApp(ctk.CTk):
         self.build_main_layout()
 
         self.append_log(f"✅ {CONFIG.APP_NAME} {CONFIG.VERSION} 已成功啟動。", CONFIG.THEME["SUCCESS"])
-        self.append_log("💡 提示：本工具使用三層安全防禦架構，未知快取絕不自動刪除，記憶體與進程獨立管理。\n---", CONFIG.THEME["TEXT_MUTED"])
+        self.append_log("💡 提示：本工具使用三層安全防禦架構，未知快取絕不自動刪除，記憶體與背景程序獨立管理。\n---", CONFIG.THEME["TEXT_MUTED"])
 
     def build_main_layout(self):
         # 頂部狀態列
@@ -222,7 +222,7 @@ class SystemOptimizerApp(ctk.CTk):
         )
         btn_trim_ws.pack(fill="x", padx=10, pady=6)
 
-        ctk.CTkCheckBox(scroll_left, text="關閉高佔用閒置處理程序", variable=self.var_kill_zombie, font=self.default_font).pack(anchor="w", padx=10, pady=3)
+        ctk.CTkCheckBox(scroll_left, text="關閉高佔用閒置程序", variable=self.var_kill_zombie, font=self.default_font).pack(anchor="w", padx=10, pady=3)
         ctk.CTkCheckBox(scroll_left, text="🛡️ 模擬開關 (僅預覽明細，不真實刪除或結束程序)", variable=self.var_dry_run, font=self.default_font, text_color=CONFIG.THEME["SUCCESS"]).pack(anchor="w", padx=10, pady=3)
 
         lbl_slider_desc = ctk.CTkLabel(scroll_left, text="閒置程序記憶體判定門檻：", font=self.default_font)
@@ -520,8 +520,33 @@ class SystemOptimizerApp(ctk.CTk):
         )
         btn_add_kw.pack(side="left", padx=10, pady=15)
 
+        card_list = ctk.CTkFrame(scroll_set, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=8)
+        card_list.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+
+        top_list_bar = ctk.CTkFrame(card_list, fg_color="transparent")
+        top_list_bar.pack(fill="x", padx=15, pady=(15, 10))
+
+        ctk.CTkLabel(top_list_bar, text="🛡️ 目前保護之白名單關鍵字：", font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left")
+
+        btn_reset = ctk.CTkButton(
+            top_list_bar, text="恢復系統預設", font=ctk.CTkFont(family="Microsoft JhengHei", size=11),
+            fg_color=CONFIG.THEME["WARNING"], hover_color="#D68910", width=100, height=26,
+            command=self._reset_whitelist_keywords
+        )
+        btn_reset.pack(side="right")
+
+        self.frame_whitelist_tags = ctk.CTkFrame(card_list, fg_color="transparent")
+        self.frame_whitelist_tags.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+        self.refresh_whitelist_ui()
+
+    def refresh_whitelist_ui(self):
+        for widget in self.frame_whitelist_tags.winfo_children():
+            widget.destroy()
+
+        curr_keywords = load_protected_keywords()
         for kw in curr_keywords:
-            tag_frame = ctk.CTkFrame(self.frame_whitelist_tags, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+            tag_frame = ctk.CTkFrame(self.frame_whitelist_tags, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
             tag_frame.pack(side="left", padx=4, pady=4)
             ctk.CTkLabel(tag_frame, text=f"🛡️ {kw}", font=self.default_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left", padx=(10, 5), pady=6)
             btn_del = ctk.CTkButton(
@@ -715,8 +740,33 @@ class SystemOptimizerApp(ctk.CTk):
         )
         btn_add_kw.pack(side="left", padx=10, pady=15)
 
+        card_list = ctk.CTkFrame(scroll_set, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=8)
+        card_list.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+
+        top_list_bar = ctk.CTkFrame(card_list, fg_color="transparent")
+        top_list_bar.pack(fill="x", padx=15, pady=(15, 10))
+
+        ctk.CTkLabel(top_list_bar, text="🛡️ 目前保護之白名單關鍵字：", font=self.sec_title_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left")
+
+        btn_reset = ctk.CTkButton(
+            top_list_bar, text="恢復系統預設", font=ctk.CTkFont(family="Microsoft JhengHei", size=11),
+            fg_color=CONFIG.THEME["WARNING"], hover_color="#D68910", width=100, height=26,
+            command=self._reset_whitelist_keywords
+        )
+        btn_reset.pack(side="right")
+
+        self.frame_whitelist_tags = ctk.CTkFrame(card_list, fg_color="transparent")
+        self.frame_whitelist_tags.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+        self.refresh_whitelist_ui()
+
+    def refresh_whitelist_ui(self):
+        for widget in self.frame_whitelist_tags.winfo_children():
+            widget.destroy()
+
+        curr_keywords = load_protected_keywords()
         for kw in curr_keywords:
-            tag_frame = ctk.CTkFrame(self.frame_whitelist_tags, fg_color=CONFIG.THEME["BG_DARK"], corner_radius=6)
+            tag_frame = ctk.CTkFrame(self.frame_whitelist_tags, fg_color=CONFIG.THEME["CARD_BG"], corner_radius=6)
             tag_frame.pack(side="left", padx=4, pady=4)
             ctk.CTkLabel(tag_frame, text=f"🛡️ {kw}", font=self.default_font, text_color=CONFIG.THEME["TEXT_LIGHT"]).pack(side="left", padx=(10, 5), pady=6)
             btn_del = ctk.CTkButton(
@@ -876,7 +926,7 @@ class SystemOptimizerApp(ctk.CTk):
                     if is_dry_run: pending_files.extend(res)
                 _update_progress(0.9)
 
-                # 閒置進程關閉 (獨立勾選)
+                # 閒置程序關閉 (獨立勾選)
                 if selected_actions["kill_zombie"]:
                     high_procs = MemoryEngine.inspect_high_ram_processes(ram_limit_mb=selected_actions["ram_limit"])
                     if is_dry_run: pending_pids.extend(high_procs)

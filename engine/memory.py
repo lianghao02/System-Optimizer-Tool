@@ -84,7 +84,7 @@ def get_process_working_set_mb(pid):
     return 0.0
 
 def get_running_processes_fast():
-    """Win32 Native Toolhelp32 快照 API 取得極速程序列表 (無子進程)"""
+    """Win32 Native Toolhelp32 快照 API 取得極速程序列表 (無子行程)"""
     procs = []
     try:
         TH32CS_SNAPPROCESS = 0x00000002
@@ -106,10 +106,10 @@ class MemoryEngine:
     def trim_working_set(log_callback):
         """
         記憶體暫時釋放工具：針對背景程序縮減 Working Set 頁面分頁。
-        說明：本操作僅調用 EmptyWorkingSet API 將可移出之頁面寫入分頁檔，適合高記憶體壓力情境下手動執行。
+        說明：本操作僅呼叫 EmptyWorkingSet API 將可移出之頁面寫入分頁檔，適合高記憶體壓力情境下手動執行。
         """
         from engine.config import CONFIG
-        log_callback("⚙️ 調用 Windows 原生 API 進行背景程序 Working Set 分頁暫時釋放...", CONFIG.THEME["PRIMARY"])
+        log_callback("⚙️ 呼叫 Windows 原生 API 進行背景程序 Working Set 分頁暫時釋放...", CONFIG.THEME["PRIMARY"])
         compressed_count = 0
         try:
             if sys.platform.startswith('win'):
