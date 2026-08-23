@@ -41,10 +41,18 @@ Write-Host '=================================================================' -
 # ----------------------------------------------------------------------
 $isEnvironmentReady = $false
 if (Test-Path -LiteralPath $embedPython) {
-    # 測試執行並驗證 (包含 Tkinter 支援檢測)
-    $testRun = & $embedPython -c "import sys, tkinter, customtkinter; print('READY')" 2>$null
-    if ($testRun -match 'READY') {
-        $isEnvironmentReady = $true
+    # 測試執行並驗證 (包含 Tkinter 與 CustomTkinter 支援檢測)
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $testRun = & $embedPython -c "import sys, tkinter, customtkinter; print('READY')" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $testRun -match 'READY') {
+            $isEnvironmentReady = $true
+        }
+    } catch {
+        $isEnvironmentReady = $false
+    } finally {
+        $ErrorActionPreference = $oldEap
     }
 }
 
@@ -63,7 +71,8 @@ if (-not $isEnvironmentReady) {
     $zipPath = $null
     foreach ($sp in $searchPaths) {
         if ($sp -and (Test-Path -LiteralPath $sp)) {
-            $found = Get-ChildItem -LiteralPath $sp -Filter '*embed*amd64*.zip' -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            $found = Get-ChildItem -LiteralPath $sp -Filter '*embed*amd64*.zip' -File -ErrorAction SilentlyContinue |
+                Sort-Object Name -Descending | Select-Object -First 1
             if ($found) {
                 $zipPath = $found.FullName
                 break
@@ -72,14 +81,14 @@ if (-not $isEnvironmentReady) {
     }
 
     if (-not $zipPath) {
-        $zipPath = Join-Path $projectDir 'python-3.13.0-embed-amd64.zip'
+        $zipPath = Join-Path $projectDir 'python-3.13.5-embed-amd64.zip'
     }
 
     # ------------------------------------------------------------------
     # 階段 ②：取得 ZIP 壓縮包 (場景 3: 本機優先 / 場景 2: 線上下載)
     # ------------------------------------------------------------------
     if (-not (Test-Path -LiteralPath $zipPath)) {
-        $downloadUrl = 'https://www.python.org/ftp/python/3.13.0/python-3.13.0-embed-amd64.zip'
+        $downloadUrl = 'https://www.python.org/ftp/python/3.13.5/python-3.13.5-embed-amd64.zip'
         Write-Host '🌐 [1/4] 本機未發現 ZIP，正在從 Python 官方下載可攜核心 (11.9 MB)...' -ForegroundColor Green
         Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
         Write-Host "   ✅ 下載完成：$zipPath" -ForegroundColor Gray
@@ -122,19 +131,14 @@ if (-not $isEnvironmentReady) {
         'C:\Python313',
         'D:\Python313'
     )
-    if (Get-Command python.exe -ErrorAction SilentlyContinue) {
-        $sysPyExe = (Get-Command python.exe).Source
-        $candidatePyHomes += (Split-Path -Parent $sysPyExe)
+    $sysPy = Get-Command python.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($sysPy -and $sysPy.Source) {
+        $candidatePyHomes += (Split-Path -Parent $sysPy.Source)
     }
 
     foreach ($pyHome in $candidatePyHomes) {
         if ($pyHome -and (Test-Path -LiteralPath (Join-Path $pyHome 'DLLs\_tkinter.pyd'))) {
             Write-Host "🎨 正在自本機環境 ($pyHome) 自動補齊 Tkinter / GUI 渲染模組..." -ForegroundColor Green
-            foreach ($dllName in @('python.exe', 'pythonw.exe', 'python3.dll', 'python313.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
-                $src = Join-Path $pyHome $dllName
-                if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $embedDir -Force }
-            }
-
             $dstDlls = Join-Path $embedDir 'DLLs'
             New-Item -ItemType Directory -Force -Path $dstDlls | Out-Null
             foreach ($dllName in @('_tkinter.pyd', 'tcl86t.dll', 'tk86t.dll', 'zlib1.dll')) {
