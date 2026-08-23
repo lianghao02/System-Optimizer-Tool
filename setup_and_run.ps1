@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     [string]$TargetProject = '',
-    [switch]$NoLaunch
+    [switch]$NoLaunch,
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +41,11 @@ Write-Host '=================================================================' -
 # 階段 ①：檢查是否已具備現成的 Python 可攜環境 (場景 1：隨身碟 / 已就緒)
 # ----------------------------------------------------------------------
 $isEnvironmentReady = $false
+
+if ($Force -and (Test-Path -LiteralPath $embedDir)) {
+    Write-Host "[強制重建] 偵測到 -Force 參數，正在重置環境..." -ForegroundColor Magenta
+    Remove-Item -LiteralPath $embedDir -Recurse -Force
+}
 if (Test-Path -LiteralPath $embedPython) {
     # 測試執行並驗證 (包含 Tkinter 與 CustomTkinter 支援檢測)
     $oldEap = $ErrorActionPreference
