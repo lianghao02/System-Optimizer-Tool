@@ -1,19 +1,33 @@
+# .NET / C# build artifacts
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
 # Python bytecode and cache
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
-# Local environment and configurations
+# Python embed and virtual environments
+python_embed/
+python-embed/
+**/python_embed/
+**/python-embed/
 .venv/
+**/venv/
+
+# Environment and secrets
 .env
 .env.local
-config/*.json
-config/backup_shortcuts/
+.env.*.local
 
 # IDE and OS files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-python_embed/
-python-embed/
