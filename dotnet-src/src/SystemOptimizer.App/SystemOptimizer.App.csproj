@@ -7,6 +7,9 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app_icon.ico</ApplicationIcon>
+    <Version>6.2.1</Version>
+    <FileVersion>6.2.1.0</FileVersion>
+    <AssemblyVersion>6.2.1.0</AssemblyVersion>
     <Platforms>x64;AnyCPU</Platforms>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
