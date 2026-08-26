@@ -13,6 +13,14 @@
 - **決策**：不建立第二個 GitHub Repo，將 C# .NET 原始碼置於 `dotnet-src/` 作為主力發布引擎，原始 Python 原始碼封存於 `legacy-python/` 作為歷史對照與備援。
 - **清理成果**：刪除 `legacy-python/python_embed/` 與中間 `bin/obj` 檔案共 2,479 個雜訊檔，專案庫由 56.2MB 瘦身至 **0.63 MB**。
 
+### 決策 3：雙版本發布策略 (Slim vs Standalone)
+- **日期**：2026-08-26
+- **背景**：在未安裝 .NET 8 Desktop Runtime 的乾淨 Windows 機器上，預設依賴 Runtime 的單檔 Exe 會彈出下載提示框。
+- **決策**：`build_release.ps1` 同時產出兩種版本：
+  1. `publish/slim/SystemOptimizer.App.exe`（0.34 MB，需 .NET 8 Runtime，適合開發自用）。
+  2. `publish/standalone/SystemOptimizer.App.exe`（68.4 MB，`--self-contained true` 內嵌 Runtime，完全免安裝即開即用）。
+- **效益**：根目錄啟動批次檔自動優先使用 `standalone` 免安裝版，確保一般使用者開箱即用。
+
 ---
 
 ## 2. 重要技術坑洞與踩坑解法 (Bug & Gotchas)
@@ -24,7 +32,7 @@
 ### 坑洞 2：.NET SDK 本機環境路徑
 - **現象**：在命令列執行 `dotnet` 時可能呼叫到 `C:\Program Files\dotnet`（無 SDK 的空 host）。
 - **解法**：在建置腳本中明確設定：
-  - `DOTNET_ROOT = C:\Users\chia-hao\AppData\Local\Microsoft\dotnet`
+  - `DOTNET_ROOT = %LOCALAPPDATA%\Microsoft\dotnet`
   - `PATH` 優先置入 `%LOCALAPPDATA%\Microsoft\dotnet`。
 
 ### 坑洞 3：`<UseWindowsForms>true</UseWindowsForms>` 導致命名空間衝突

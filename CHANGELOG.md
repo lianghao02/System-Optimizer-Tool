@@ -4,6 +4,17 @@
 
 ---
 
+## 🏆 [v6.2.1] - 2026-08-26 (雙版本發布與免安裝即用支援)
+
+### 📦 發布與建置系統重構
+- **支援雙版本自動發布輸出**：
+  - **獨立免安裝版 (Standalone)**：內嵌完整 .NET 8 Runtime (`--self-contained true` + 單檔壓縮)，產出於 `publish/standalone/`（約 68.4 MB），任何 Windows 機器直接執行免下載 Runtime。
+  - **極致輕量版 (Slim)**：依賴系統 .NET 8 Desktop Runtime，產出於 `publish/slim/`（約 0.34 MB），適合自用與低容量需求。
+- **一鍵啟動腳本升級**：`⚡ 啟動系統優化工具.bat` 調整為自動優先偵測並啟動免安裝獨立版。
+- **自動化本機 SDK 偵測**：`build_release.ps1` 完善 `%LOCALAPPDATA%\Microsoft\dotnet` 本機 SDK 優先調用邏輯。
+
+---
+
 ## 🏆 [v6.2.0] - 2026-08-26 (安全防禦強化與可觀測性提升)
 
 ### 🛡️ 安全防禦與快取優化

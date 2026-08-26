@@ -1,6 +1,8 @@
 # .NET / C# build artifacts
 [Bb]in/
 [Oo]bj/
+[Pp]ublish/
+**/publish/
 .vs/
 *.user
 *.userosscache
