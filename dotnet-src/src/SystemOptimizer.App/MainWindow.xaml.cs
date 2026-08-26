@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Forms;
 using SystemOptimizer.App.ViewModels;
+using SystemOptimizer.Core.Models;
 
 namespace SystemOptimizer.App;
 
@@ -70,6 +71,16 @@ public partial class MainWindow : Window
         Show();
         WindowState = WindowState.Normal;
         Activate();
+    }
+
+    private async void SearchLargeFilesFromDrive_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || sender is not FrameworkElement { DataContext: DriveStorageInfo drive } || viewModel.IsBusy)
+            return;
+
+        viewModel.SelectedDrivePath = drive.DriveLetter;
+        MainTabControl.SelectedIndex = 2;
+        await viewModel.ScanLargeFilesAsync();
     }
 
     protected override void OnStateChanged(EventArgs e)

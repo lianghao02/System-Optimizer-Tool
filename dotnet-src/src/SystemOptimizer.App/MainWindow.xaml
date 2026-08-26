@@ -48,7 +48,7 @@
         </Border>
 
         <!-- 主分頁區域 (4 大現代膠囊式分段導航) -->
-        <TabControl Grid.Row="1">
+        <TabControl Grid.Row="1" x:Name="MainTabControl">
             <!-- 分頁 1: 儀表板與記憶體 -->
             <TabItem Header="儀表板與記憶體">
                 <Grid Margin="0,4,0,0">
@@ -95,7 +95,7 @@
                             <Border Grid.Row="3" Background="#F4F7FB" CornerRadius="8" Padding="12,10" Margin="0,0,0,16">
                                 <StackPanel>
                                     <TextBlock Text="💡 原生記憶體釋放說明：" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock Text="點擊下方按鈕將透過 Win32 原生 API 清空各程序無效工作集 (EmptyWorkingSet) 並釋放系統 Standby 待命快取清單。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,4" TextWrapping="Wrap"/>
+                                    <TextBlock Text="此操作會要求 Windows 整理各程序工作集與 Standby 快取；可用記憶體變化屬暫時狀態，Windows 仍會依需要重新配置。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,4" TextWrapping="Wrap"/>
                                     <TextBlock Text="{Binding LastFreedMemoryText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
                                 </StackPanel>
                             </Border>
@@ -139,7 +139,11 @@
                                                         <TextBlock Text="{Binding FormattedFree, StringFormat='剩餘可用：{0}'}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                                                         <ProgressBar Value="{Binding FreePercentage}" Maximum="100" Height="6" Margin="0,6,12,0"/>
                                                     </StackPanel>
-                                                    <TextBlock Grid.Column="1" Text="{Binding FreePercentage, StringFormat='可用 {0:F1}%'}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding FreePercentage, StringFormat='可用 {0:F1}%'}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Right"/>
+                                                        <Button Content="🔍 搜尋大檔案" Style="{StaticResource MorandiOutlineButton}" Padding="8,4" FontSize="11" Margin="0,7,0,0"
+                                                                Click="SearchLargeFilesFromDrive_Click" ToolTip="切換至大檔案透視並立即掃描此磁碟" />
+                                                    </StackPanel>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -168,7 +172,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="系統與 16+ 項常見快取殘留掃描" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                                <TextBlock Text="可自由勾選欲清除的快取類別，點擊右下角按鈕安全清除" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                <TextBlock Text="清理前會顯示已選目標、檔案數與預估空間，確認後才執行；可隨時取消。" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button Content="全選" Command="{Binding SelectAllCacheCommand}" Style="{StaticResource MorandiOutlineButton}" Padding="10,5" FontSize="12" Margin="0,0,6,0"/>
@@ -230,16 +234,24 @@
                                 <TextBlock Text="🔍 磁碟大檔案透視 (Large File Finder)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
                                 <TextBlock Text="遍歷搜尋指定磁碟中的巨型肥大檔案排行 Top 50，快速找出佔用空間的元凶" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="目標磁碟：" FontSize="13" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <ComboBox ItemsSource="{Binding DriveInfos}" SelectedValuePath="DriveLetter" SelectedValue="{Binding SelectedDrivePath}" Width="100" Height="30" Margin="0,0,10,0">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding DriveLetter}"/>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <Button Content="⚡ 立即掃描大檔案" Command="{Binding ScanLargeFilesCommand}" Style="{StaticResource MorandiButton}"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="目標磁碟：" FontSize="13" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox ItemsSource="{Binding DriveInfos}" SelectedValuePath="DriveLetter" SelectedValue="{Binding SelectedDrivePath}" Width="100" Height="30" Margin="0,0,10,0">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DriveLetter}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button Content="⚡ 立即掃描大檔案" Command="{Binding ScanLargeFilesCommand}" Style="{StaticResource MorandiButton}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                    <TextBlock Text="篩選：" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <ComboBox ItemsSource="{Binding LargeFileTypeFilters}" SelectedItem="{Binding LargeFileTypeFilter}" Width="90" Height="26" Margin="0,0,6,0"/>
+                                    <ComboBox ItemsSource="{Binding LargeFileTimeFilters}" DisplayMemberPath="DisplayName" SelectedValuePath="Days" SelectedValue="{Binding LargeFileModifiedWithinDays}" Width="90" Height="26" Margin="0,0,6,0"/>
+                                    <ComboBox ItemsSource="{Binding LargeFileSizeFilters}" DisplayMemberPath="DisplayName" SelectedValuePath="Megabytes" SelectedValue="{Binding LargeFileFilterMinimumSizeMb}" Width="105" Height="26"/>
+                                </StackPanel>
                             </StackPanel>
                         </Grid>
 
@@ -302,10 +314,17 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="v6.1.0 Native Single-File" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock Text="{Binding OperationProgressText}" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                </StackPanel>
+                <ProgressBar Grid.Column="1" Value="{Binding OperationProgressPercentage}" Maximum="100" Height="7" Margin="12,0" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" Content="取消目前工作" Command="{Binding CancelOperationCommand}" Style="{StaticResource MorandiOutlineButton}" Padding="9,4" FontSize="11" Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="3" Text="v6.1.0 Native Single-File" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
             </Grid>
         </Border>
     </Grid>

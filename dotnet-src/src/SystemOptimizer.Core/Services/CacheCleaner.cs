@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SystemOptimizer.Core.Models;
@@ -11,8 +12,14 @@ namespace SystemOptimizer.Core.Services;
 public class CacheCleaner
 {
     private readonly SafetyGuard _safetyGuard = new();
+    private readonly Func<List<CacheTarget>>? _targetProvider;
 
     public record CacheTarget(string Category, string Path, string Description, string? AssociatedProcess = null);
+
+    public CacheCleaner(Func<List<CacheTarget>>? targetProvider = null)
+    {
+        _targetProvider = targetProvider;
+    }
 
     public List<CacheTarget> GetDefaultTargets()
     {
@@ -98,19 +105,29 @@ public class CacheCleaner
         return list;
     }
 
-    public async Task<List<CacheItem>> ScanTargetsAsync(IProgress<string>? progress = null, CancellationToken ct = default)
+    public async Task<CacheScanResult> ScanTargetsAsync(IProgress<OperationProgress>? progress = null, CancellationToken ct = default)
     {
+        if (ct.IsCancellationRequested)
+            return new CacheScanResult(Array.Empty<CacheItem>(), 0, 0, true);
+
         return await Task.Run(() =>
         {
             var results = new List<CacheItem>();
-            var targets = GetDefaultTargets();
+            var issues = new List<string>();
+            var targets = GetActiveTargets();
+            var approvedPaths = targets.Select(target => target.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var skippedFiles = 0;
+            var errorCount = 0;
 
-            foreach (var target in targets)
+            for (var targetIndex = 0; targetIndex < targets.Count; targetIndex++)
             {
-                if (ct.IsCancellationRequested) break;
-                progress?.Report($"正在掃描：{target.Category}...");
+                if (ct.IsCancellationRequested)
+                    return new CacheScanResult(results, skippedFiles, errorCount, true, CreateErrorSummary(issues));
 
-                if (!_safetyGuard.IsSafeTarget(target.Path) || !Directory.Exists(target.Path))
+                var target = targets[targetIndex];
+                progress?.Report(new OperationProgress(GetProgress(targetIndex, targets.Count), $"正在掃描：{target.Category}..."));
+
+                if (!_safetyGuard.IsApprovedCacheTarget(target.Path, approvedPaths) || !Directory.Exists(target.Path))
                     continue;
 
                 long size = 0;
@@ -119,27 +136,51 @@ public class CacheCleaner
                 try
                 {
                     var dirInfo = new DirectoryInfo(target.Path);
-                    foreach (var file in dirInfo.EnumerateFiles("*", SearchOption.AllDirectories))
+                    if ((dirInfo.Attributes & FileAttributes.ReparsePoint) != 0)
                     {
-                        if (ct.IsCancellationRequested) break;
+                        AddIssue(issues, $"略過目錄連結：{target.Category}");
+                        skippedFiles++;
+                        continue;
+                    }
+
+                    foreach (var file in dirInfo.EnumerateFiles("*", SafeEnumerationOptions))
+                    {
+                        if (ct.IsCancellationRequested)
+                            return new CacheScanResult(results, skippedFiles, errorCount, true, CreateErrorSummary(issues));
                         try
                         {
                             size += file.Length;
                             count++;
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            skippedFiles++;
+                            errorCount++;
+                            AddIssue(issues, $"無法讀取 {file.Name}：{ex.Message}");
+                        }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    errorCount++;
+                    AddIssue(issues, $"無法掃描 {target.Category}：{ex.Message}");
+                }
 
                 if (count > 0)
                 {
                     string note = "";
                     if (!string.IsNullOrEmpty(target.AssociatedProcess))
                     {
-                        if (Process.GetProcessesByName(target.AssociatedProcess).Length > 0)
+                        var processes = Process.GetProcessesByName(target.AssociatedProcess);
+                        try
                         {
-                            note = $"⚠️ 應用程式執行中 (鎖定檔將安全略過)";
+                            if (processes.Length > 0)
+                                note = $"⚠️ 應用程式執行中 (鎖定檔將安全略過)";
+                        }
+                        finally
+                        {
+                            foreach (var process in processes)
+                                process.Dispose();
                         }
                     }
 
@@ -147,32 +188,46 @@ public class CacheCleaner
                 }
             }
 
-            return results;
+            progress?.Report(new OperationProgress(100, "快取掃描完成"));
+            return new CacheScanResult(results, skippedFiles, errorCount, false, CreateErrorSummary(issues));
         }, ct);
     }
 
-    public async Task<OptimizationResult> CleanTargetsAsync(IEnumerable<CacheItem> items, IProgress<string>? progress = null, CancellationToken ct = default)
+    public async Task<OptimizationResult> CleanTargetsAsync(IEnumerable<CacheItem> items, IProgress<OperationProgress>? progress = null, CancellationToken ct = default)
     {
         var sw = Stopwatch.StartNew();
         long freedBytes = 0;
         int deletedFiles = 0;
+        int skippedFiles = 0;
+        int errorCount = 0;
+        var issues = new List<string>();
+        var selectedItems = items.Where(item => item.IsSelected).ToList();
 
-        await Task.Run(() =>
+        if (!ct.IsCancellationRequested)
+            await Task.Run(() =>
         {
-            foreach (var item in items)
+            var approvedPaths = GetActiveTargets().Select(target => target.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            for (var itemIndex = 0; itemIndex < selectedItems.Count; itemIndex++)
             {
                 if (ct.IsCancellationRequested) break;
-                if (!item.IsSelected) continue; // 僅清理勾選項
+                var item = selectedItems[itemIndex];
 
-                progress?.Report($"正在清理：{item.Category}...");
+                progress?.Report(new OperationProgress(GetProgress(itemIndex, selectedItems.Count), $"正在清理：{item.Category}..."));
 
-                if (!_safetyGuard.IsSafeTarget(item.Path) || !Directory.Exists(item.Path))
+                if (!_safetyGuard.IsApprovedCacheTarget(item.Path, approvedPaths) || !Directory.Exists(item.Path))
                     continue;
 
                 try
                 {
                     var dirInfo = new DirectoryInfo(item.Path);
-                    foreach (var file in dirInfo.EnumerateFiles("*", SearchOption.AllDirectories))
+                    if ((dirInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        skippedFiles++;
+                        AddIssue(issues, $"略過目錄連結：{item.Category}");
+                        continue;
+                    }
+
+                    foreach (var file in dirInfo.EnumerateFiles("*", SafeEnumerationOptions))
                     {
                         if (ct.IsCancellationRequested) break;
                         try
@@ -182,13 +237,16 @@ public class CacheCleaner
                             freedBytes += len;
                             deletedFiles++;
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // In-use locked files are safely skipped
+                            skippedFiles++;
+                            errorCount++;
+                            AddIssue(issues, $"略過 {file.Name}：{ex.Message}");
                         }
                     }
 
-                    foreach (var dir in dirInfo.EnumerateDirectories("*", SearchOption.AllDirectories))
+                    foreach (var dir in dirInfo.EnumerateDirectories("*", SafeEnumerationOptions)
+                                               .OrderByDescending(dir => dir.FullName.Length))
                     {
                         try
                         {
@@ -197,14 +255,46 @@ public class CacheCleaner
                                 dir.Delete();
                             }
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            errorCount++;
+                            AddIssue(issues, $"無法移除空目錄 {dir.Name}：{ex.Message}");
+                        }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    errorCount++;
+                    AddIssue(issues, $"無法清理 {item.Category}：{ex.Message}");
+                }
             }
-        }, ct);
+        });
 
         sw.Stop();
-        return new OptimizationResult(freedBytes, deletedFiles, 0, sw.Elapsed, $"清理完成，共釋放 {CacheItem.FormatBytes(freedBytes)} 空間！");
+        var wasCanceled = ct.IsCancellationRequested;
+        var message = wasCanceled
+            ? $"已取消清理，已釋放 {CacheItem.FormatBytes(freedBytes)} 空間。"
+            : $"清理完成，共釋放 {CacheItem.FormatBytes(freedBytes)} 空間。";
+        progress?.Report(new OperationProgress(100, message));
+        return new OptimizationResult(freedBytes, deletedFiles, 0, sw.Elapsed, message, skippedFiles, errorCount, wasCanceled, CreateErrorSummary(issues));
     }
+
+    private List<CacheTarget> GetActiveTargets() => _targetProvider?.Invoke() ?? GetDefaultTargets();
+
+    private static int GetProgress(int completed, int total) => total == 0 ? 100 : completed * 100 / total;
+
+    private static void AddIssue(List<string> issues, string message)
+    {
+        if (issues.Count < 3)
+            issues.Add(message);
+    }
+
+    private static string? CreateErrorSummary(List<string> issues) => issues.Count == 0 ? null : string.Join("；", issues);
+
+    private static readonly EnumerationOptions SafeEnumerationOptions = new()
+    {
+        RecurseSubdirectories = true,
+        IgnoreInaccessible = true,
+        AttributesToSkip = FileAttributes.ReparsePoint,
+    };
 }

@@ -3,69 +3,50 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
 [![WPF](https://img.shields.io/badge/WPF-Windows-brightgreen.svg)]()
 [![Single-File](https://img.shields.io/badge/Size-0.30MB-success.svg)]()
-[![Version](https://img.shields.io/badge/version-v6.1.0-success.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v6.2.0-success.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-本工具為專為 Windows 10/11 設計之輕量級系統快取清理、實體記憶體即時深度釋放、磁碟巨型大檔案透視、開機自啟動管理與系統匣常駐工具。
+本工具為專為 Windows 10/11 設計之輕量級系統快取安全清理、實體記憶體即時深度釋放、磁碟巨型大檔案透視、開機自啟動管理與系統匣常駐工具。
 
-本專案已完成 **C# .NET 8 / WPF 原生單檔架構 (v6.1.0)** 全面升級，具備 **0.30 MB (300 KB)** 極致輕量、原生秒開、莫蘭迪現代 UI、系統匣常駐與零 Python 環境依賴。原始 Python 3.13 程式碼完整封存於 `legacy-python/` 作為歷史對照與備援引擎。
-
-## 技術架構與發行模式（2026-08-24）
-
-- 主力版已完成 **Python／CustomTkinter → C#／.NET 8／WPF** 遷移；現行程式位於 `dotnet-src/`，Python 僅保留於 `legacy-python/` 作歷史備援。
-- 目前 `dotnet-src/build_release.ps1` 採 **Framework-dependent** 單檔發行（`--self-contained false`），因此 0.30 MB 執行檔需目標電腦已安裝相容的 .NET 8 Desktop Runtime。
-- 若需完全免安裝，必須改用 Self-Contained 發行；該模式的體積會顯著大於目前 0.30 MB，不能同時宣稱兩者。
+本專案已完成 **C# .NET 8 / WPF 原生單檔架構 (v6.2.0)** 全面升級，具備 **0.30 MB (300 KB)** 極致輕量、原生秒開、莫蘭迪現代 UI、系統匣常駐與零 Python 環境依賴。原始 Python 3.13 程式碼完整封存於 `legacy-python/` 作為歷史對照與備援引擎。
 
 ---
 
-## 🏆 v6.1.0 升級亮點與指標對比
+## 🏆 v6.2.0 升級亮點與指標對比
 
-| 指標面向 | 原始版本 (Python 3.13) | C# .NET 8 原生版 (v6.1.0) | 改善幅度與效益 |
+| 指標面向 | 原始版本 (Python 3.13) | C# .NET 8 原生版 (v6.2.0) | 改善幅度與效益 |
 |:---|:---|:---|:---:|
-| **技術語言** | Python 3.13 + CustomTkinter | **C# 12 (.NET 8.0) + WPF** | 原生 Win32 第一公民 |
+| **技術語言** | Python 3.13 + CustomTkinter | **C# 12 (.NET 8.0) + WPF** | 原生 Win32 第一公民，零環境依賴 |
 | **發行體積** | 約 **155 MB** (含 `python_embed` 核心) | **0.30 MB (300 KB)** | 🚀 **體積縮減 99.8%** |
 | **啟動時間** | ~ 1.5 秒 (載入 Python 虛擬機) | **< 0.1 秒 (瞬間秒開)** | ⚡ **速度提升 15 倍** |
+| **安全防禦** | 基礎路徑比對 | **白名單隔離 + 略過目錄連結 + 二次確認** | 🛡️ **徹底杜絕誤刪與穿透風險** |
 | **快取覆蓋** | 7 項常見快取 | **16+ 項系統與常用軟體快取** | 🧹 **可多釋放 2GB~5GB 空間** |
-| **大檔案透視** | 簡易清單 | **遍歷巨型肥大檔案 Top 50 (支援定位總管)** | 🔍 **秒抓塞爆磁碟元凶** |
+| **大檔案掃描** | 遍歷累積所有物件 | **PriorityQueue Top 50 + 快速篩選** | 🔍 **零記憶體負擔、秒抓大檔** |
+| **磁碟透視** | 分頁各自獨立 | **儀表板一鍵穿透帶入掃描** | ⚡ **跨分頁無縫流暢體驗** |
 | **系統匣常駐** | 無 | **Windows 系統匣常駐 + 右鍵極速釋放** | 📌 **背景待命、即時監控** |
-| **記憶體負載** | 單色進度條 | **三段式健康/負載/警示動態色彩** | 🎨 **視覺即時感知負載** |
-| **單元測試** | unittest | **xUnit (3/3 Tests 100% Clean Pass)** | 🟢 **核心安全防禦保障** |
+| **單元測試** | unittest | **xUnit (7/7 Tests 100% Clean Pass)** | 🟢 **含 Junction 隔離等完整測試** |
 
 ---
 
-## ✨ 七大重點核心功能
+## ✨ 核心功能與安全機制
 
-1. ⚡ **Win32 原生記憶體深度釋放**：
+1. 🛡️ **快取清理安全強化與防禦機制**：
+   - **嚴格白名單與連結隔離**：嚴格限定合法快取目標，自動略過所有 Junction 與符號連結（Reparse Point），防止誤刪連結外資料。
+   - **清理前二次確認**：清理前主動彈出確認視窗，清晰列出勾選目標、檔案數與預估釋放空間。
+   - **可取消與例外摘要**：掃描與清理皆支援隨時取消，完成後完整回報略過與鎖定例外摘要。
+2. ⚡ **Win32 原生記憶體深度釋放與可觀測性**：
    - **即時動態監控**：內建背景計時器每 2 秒自動即時更新實體記憶體使用量與活躍處理程序數。
-   - **三段式動態警示色票**：
-     - `< 65%`：柔和莫蘭迪青綠（健康）
-     - `65% ~ 80%`：琥珀黃（負載中）
-     - `> 80%`：警示橘紅（高壓警示）
-   - **雙重釋放機制**：同時呼叫 `EmptyWorkingSet`（清空無效工作集）與 `NtSetSystemInformation`（清空 Standby 待命快取清單），並即時回饋釋放容量。
-
-2. 🧹 **16+ 項系統與常用軟體快取清理**：
-   - **涵蓋類別**：Windows 系統暫存 (`Temp`)、預先讀取檔 (`Prefetch`)、錯誤傾印 (`CrashDumps`)、Windows Update 安裝快取、傳遞最佳化快取、檔案總管縮圖快取、DirectX / NVIDIA 著色器快取、系統記錄檔 (`Logs`)，以及 Google Chrome、Microsoft Edge、VS Code、Discord、Spotify 等快取。
-   - **自由勾選機制**：內建 CheckBox 勾選欄位，支援「全選」與「取消全選」，自由決定欲清除類別。
-   - **人性化容量轉換**：自動轉換為 `MB` / `GB` / `KB` 易讀格式。
-   - **應用程式運行鎖定預警**：自動檢測 Chrome/Edge/Discord 是否執行中，若有鎖定檔案自動安全略過並友善提示。
-
-3. 🔍 **磁碟大檔案透視 (Large File Finder)**：
-   - 遍歷搜尋指定磁碟中的巨型肥大檔案排行 Top 50（預設 > 100MB）。
-   - 支援「在檔案總管中定位選取檔案」，一鍵開啟所在目錄。
-
+   - **動態色票警示**：`< 65%` 柔和莫蘭迪青綠、`65% ~ 80%` 琥珀黃、`> 80%` 警示橘紅。
+   - **雙重釋放機制**：同時呼叫 `EmptyWorkingSet`（清空無效工作集）與 `NtSetSystemInformation`（清空 Standby 待命快取清單）。
+   - **透明可觀測性**：即時回報操作前後記憶體差異，明確說明非永久釋放特性，並統計系統保護無法存取之處理程序數。
+3. 🔍 **磁碟大檔案透視 (Large File Finder) 與一鍵搜尋**：
+   - **儀表板一鍵穿透**：磁碟監控列點擊「🔍 搜尋大檔案」自動切換分頁、帶入磁碟代號並啟動掃描。
+   - **優先佇列高效演算法**：採用 `PriorityQueue` 固定保留 Top 50 巨型檔案，不浪費記憶體累積全磁碟檔案。
+   - **進階動態篩選**：支援副檔名類型、最後修改時間與最小容量自訂篩選，並可一鍵在檔案總管中定位檔案。
 4. 📌 **Windows 系統匣常駐 (System Tray)**：
-   - 視窗最小化時自動縮至右下角系統匣。
-   - 系統匣右鍵選單支援「顯示主畫面」、「⚡ 立即釋放記憶體」與「結束程式」。
-
+   - 視窗最小化時自動縮入系統匣，右鍵支援「顯示主畫面」、「⚡ 立即釋放記憶體」與「結束程式」。
 5. 🚀 **開機自啟動管理**：
-   - 安全解析並列出目前登記於 `HKCU` 與 `HKLM` 登錄檔 Run 鍵之常駐開機軟體與完整指令路徑。
-
-6. 💾 **磁碟分區容量監控**：
-   - 即時透視本機所有固定硬碟分區之總容量、剩餘空間與可用百分比。
-
-7. 🎨 **莫蘭迪現代 UI 與專屬圖示**：
-   - 膠囊分段標籤導航（Segmented Pills Navigation）、去除焦點虛線框、圓角微浮雕卡片。
-   - 內建 256x256 ~ 16x16 多解析度專屬圖示 `app_icon.ico`。
+   - 安全解析登記於 `HKCU` 與 `HKLM` 登錄檔 Run 鍵之常駐開機軟體與完整指令路徑。
 
 ---
 
@@ -81,7 +62,7 @@
 cd dotnet-src
 
 # 執行 xUnit 自動化單元測試
-dotnet test tests/SystemOptimizer.Tests
+dotnet test SystemOptimizer.sln --no-restore --nologo
 
 # 一鍵發布單一獨立 Exe (Release x64)
 .\build_release.ps1 -RunAfterBuild
@@ -95,8 +76,13 @@ dotnet test tests/SystemOptimizer.Tests
 D:\Development\GitHub\06_System-Optimizer-Tool\
 ├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開 (預設呼叫 0.30MB 原生版)
 ├── 啟動Python傳統版(備援).bat                # 📦 歷史 Python 備援啟動入口
-├── README.md                                 # 專案總說明文件
+├── README.md                                 # 專案總說明文件 (v6.2.0)
 ├── CHANGELOG.md                              # 版本異動歷程
+├── LICENSE                                   # MIT 開源授權條款
+├── AGENTS.md                                 # Agent 專屬規範
+├── ARCHITECTURE.md                           # 系統架構說明書
+├── MEMORY.md                                 # 核心決策與踩坑記憶
+├── tasks.md                                  # 原子化工作清單
 │
 ├── dotnet-src\                               # 🌟【主力發行】C# .NET 8 / WPF 原生單檔引擎
 │   ├── SystemOptimizer.sln                   # Visual Studio 解決方案檔
@@ -104,19 +90,21 @@ D:\Development\GitHub\06_System-Optimizer-Tool\
 │   ├── publish\
 │   │   └── SystemOptimizer.App.exe           # 0.30 MB 原生單檔執行檔 (含專屬圖示)
 │   ├── src\
-│   │   ├── SystemOptimizer.Core\             # Win32 原生記憶體、快取、大檔、白名單核心
+│   │   ├── SystemOptimizer.Core\             # Win32 原生記憶體、快取、大檔、安全核心
 │   │   │   ├── Native\NativeMethods.cs       # P/Invoke API 定義
-│   │   │   ├── Models\Models.cs              # 資料模型定義 (含 MB/GB 格式化)
-│   │   │   └── Services\                     # 記憶體、快取、大檔分析與安全服務
+│   │   │   ├── Models\Models.cs              # 資料模型與易讀格式化
+│   │   │   └── Services\                     # 記憶體、快取、大檔搜尋、開機項與白名單服務
 │   │   └── SystemOptimizer.App\              # 莫蘭迪現代 WPF UI 介面
 │   │       ├── Styles\MorandiTheme.xaml      # 膠囊導航與莫蘭迪樣式庫
 │   │       ├── ViewModels\MainViewModel.cs   # 即時監控、大檔搜尋與命令調度層
+│   │       ├── MainWindow.xaml               # 現代化主介面配置
 │   │       ├── MainWindow.xaml.cs            # 系統匣 NotifyIcon 常駐支援
 │   │       └── app_icon.ico                  # 多解析度專屬圖示 (256x256 ~ 16x16)
 │   └── tests\
 │       └── SystemOptimizer.Tests\            # xUnit 自動化單元測試套件
 │
-└── legacy-python\                            # 📦【歷史備援】原始 Python 3.13 引擎
+└── legacy-python\                            # 📦【歷史封存】原始 Python 3.13 引擎 (不再維護)
+    ├── README.md                             # 歷史封存說明文件
     ├── main.py                               # 原始 CustomTkinter 入口
     ├── engine\                               # 原始 Python 邏輯模組
     ├── ui\

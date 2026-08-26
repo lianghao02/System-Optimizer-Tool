@@ -90,5 +90,36 @@ public record OptimizationResult(
     int FilesDeleted,
     long MemoryFreedBytes,
     TimeSpan Duration,
-    string Message
+    string Message,
+    int SkippedFiles = 0,
+    int ErrorCount = 0,
+    bool WasCanceled = false,
+    string? ErrorSummary = null
 );
+
+public record OperationProgress(int Percentage, string Message);
+
+public record CacheScanResult(
+    IReadOnlyList<CacheItem> Items,
+    int SkippedFiles,
+    int ErrorCount,
+    bool WasCanceled,
+    string? ErrorSummary = null
+);
+
+public record StorageScanProgress(
+    int ScannedDirectoryCount,
+    int CandidateFileCount,
+    string CurrentDirectory
+);
+
+public record StorageScanResult(
+    IReadOnlyList<LargeFileInfo> Items,
+    int ScannedDirectoryCount,
+    int CandidateFileCount,
+    int SkippedDirectoryCount,
+    bool WasCanceled
+);
+
+public record TimeRangeOption(string DisplayName, int Days);
+public record SizeFilterOption(string DisplayName, int Megabytes);
