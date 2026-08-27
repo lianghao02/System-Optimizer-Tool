@@ -17,8 +17,8 @@
 - **日期**：2026-08-26
 - **背景**：在未安裝 .NET 8 Desktop Runtime 的乾淨 Windows 機器上，預設依賴 Runtime 的單檔 Exe 會彈出下載提示框。
 - **決策**：`build_release.ps1` 同時產出兩種版本：
-  1. `publish/slim/SystemOptimizer.App.exe`（0.34 MB，需 .NET 8 Runtime，適合開發自用）。
-  2. `publish/standalone/SystemOptimizer.App.exe`（68.4 MB，`--self-contained true` 內嵌 Runtime，完全免安裝即開即用）。
+  1. `publish/slim/SystemOptimizer.App.exe`（約 0.4 MB，需 .NET 8 Runtime，適合開發自用）。
+  2. `publish/standalone/SystemOptimizer.App.exe`（約 68.5 MB，`--self-contained true` 內嵌 Runtime，完全免安裝即開即用）。
 - **效益**：根目錄啟動批次檔自動優先使用 `standalone` 免安裝版，確保一般使用者開箱即用。
 
 ---

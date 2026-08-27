@@ -18,7 +18,7 @@
 | 下載檔案名稱 | 檔案大小 | 適用情境與說明 | 推薦度 |
 |:---|:---:|:---|:---:|
 | **`SystemOptimizer-v6.2.1-Standalone-x64.exe`** | ≈ **68 MB** | **【免安裝獨立完整版】** 內嵌完整 .NET 8 執行階段，**任何 Windows 電腦下載後直接雙擊執行**，完全不需安裝任何額外套件或環境。 | 🌟 **強烈推薦** |
-| **`SystemOptimizer-v6.2.1-Slim-x64.exe`** | ≈ **0.34 MB** | **【極致輕量版】** 僅 340 KB，需電腦已安裝 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。適合開發者或已具備執行環境的電腦。 | 💡 自行選用 |
+| **`SystemOptimizer-v6.2.1-Slim-x64.exe`** | ≈ **0.4 MB** | **【極致輕量版】** 約 400 KB，需電腦已安裝 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。適合開發者或已具備執行環境的電腦。 | 💡 自行選用 |
 
 > [!TIP]
 > **一般使用者建議直接下載 `SystemOptimizer-v6.2.1-Standalone-x64.exe`**，單一檔案免安裝、即開即用，放到桌面或任何資料夾點擊即可執行。
@@ -74,7 +74,7 @@ dotnet test SystemOptimizer.sln --no-restore --nologo
 
 ```text
 D:\Development\GitHub\06_System-Optimizer-Tool\
-├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開 (預設呼叫 0.30MB 原生版)
+├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開 (預設呼叫 Standalone 免安裝版)
 ├── 啟動Python傳統版(備援).bat                # 📦 歷史 Python 備援啟動入口
 ├── README.md                                 # 專案總說明文件 (v6.2.1)
 ├── CHANGELOG.md                              # 版本異動歷程
@@ -90,7 +90,7 @@ D:\Development\GitHub\06_System-Optimizer-Tool\
 │   ├── build_release.ps1                     # 一鍵建置發布腳本
 │   ├── publish\
 │   │   ├── standalone\SystemOptimizer.App.exe # 約 68 MB、免安裝獨立版
-│   │   └── slim\SystemOptimizer.App.exe      # 約 0.34 MB、需 .NET 8 Runtime
+│   │   └── slim\SystemOptimizer.App.exe      # 約 0.4 MB、需 .NET 8 Runtime
 │   ├── src\
 │   │   ├── SystemOptimizer.Core\             # Win32 原生記憶體、快取、大檔、安全核心
 │   │   │   ├── Native\NativeMethods.cs       # P/Invoke API 定義
