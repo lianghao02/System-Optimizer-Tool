@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <Resource Include="app_icon.ico" />
+    <None Include="..\..\..\version.txt" Link="version.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="..\SystemOptimizer.Core\SystemOptimizer.Core.csproj" />
   </ItemGroup>
 </Project>

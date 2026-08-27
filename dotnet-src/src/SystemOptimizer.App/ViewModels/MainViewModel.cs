@@ -65,6 +65,7 @@ public class MainViewModel : INotifyPropertyChanged
     {
         new("不限大小", 0), new("至少 100 MB", 100), new("至少 500 MB", 500), new("至少 1 GB", 1024)
     };
+    public string ApplicationVersion { get; } = VersionInfoService.GetCurrentVersion();
 
     public string StatusMessage
     {

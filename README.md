@@ -45,6 +45,11 @@
 - 點擊視窗右上角「最小化」時，程式會自動縮入右下角 Windows 系統匣。
 - 在系統匣圖示點擊滑鼠右鍵，可快速開啟主畫面、立即釋放記憶體或結束程式。
 
+### 5. 🔄 版本與更新檢查
+- 主視窗標題列會顯示目前執行版本；版本來源為根目錄 `version.txt`，並會隨建置與發布檔一併帶入。
+- 點擊「🔄 檢查更新」會透過 GitHub Release API 非同步查詢最新正式版本：已是最新版會顯示確認訊息；有新版時可直接前往 Release 頁面下載。
+- 此功能只讀取公開 Release 資訊，不會自動下載、覆寫或安裝任何檔案。
+
 ---
 
 ## 🛠️ 開發者編譯與測試
@@ -56,7 +61,7 @@
 git clone https://github.com/lianghao02/System-Optimizer-Tool.git
 cd System-Optimizer-Tool/dotnet-src
 
-# 2. 執行 xUnit 自動化單元測試 (7/7 通過)
+# 2. 執行 xUnit 自動化單元測試
 dotnet test SystemOptimizer.sln --no-restore --nologo
 
 # 3. 一鍵編譯產出雙版本發布檔
@@ -71,8 +76,9 @@ dotnet test SystemOptimizer.sln --no-restore --nologo
 D:\Development\GitHub\06_System-Optimizer-Tool\
 ├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開 (預設呼叫 0.30MB 原生版)
 ├── 啟動Python傳統版(備援).bat                # 📦 歷史 Python 備援啟動入口
-├── README.md                                 # 專案總說明文件 (v6.2.0)
+├── README.md                                 # 專案總說明文件 (v6.2.1)
 ├── CHANGELOG.md                              # 版本異動歷程
+├── version.txt                               # 應用程式與 Release 比對版本來源
 ├── LICENSE                                   # MIT 開源授權條款
 ├── AGENTS.md                                 # Agent 專屬規範
 ├── ARCHITECTURE.md                           # 系統架構說明書
@@ -83,12 +89,13 @@ D:\Development\GitHub\06_System-Optimizer-Tool\
 │   ├── SystemOptimizer.sln                   # Visual Studio 解決方案檔
 │   ├── build_release.ps1                     # 一鍵建置發布腳本
 │   ├── publish\
-│   │   └── SystemOptimizer.App.exe           # 0.30 MB 原生單檔執行檔 (含專屬圖示)
+│   │   ├── standalone\SystemOptimizer.App.exe # 約 68 MB、免安裝獨立版
+│   │   └── slim\SystemOptimizer.App.exe      # 約 0.34 MB、需 .NET 8 Runtime
 │   ├── src\
 │   │   ├── SystemOptimizer.Core\             # Win32 原生記憶體、快取、大檔、安全核心
 │   │   │   ├── Native\NativeMethods.cs       # P/Invoke API 定義
 │   │   │   ├── Models\Models.cs              # 資料模型與易讀格式化
-│   │   │   └── Services\                     # 記憶體、快取、大檔搜尋、開機項與白名單服務
+│   │   │   └── Services\                     # 記憶體、快取、大檔搜尋、開機項、白名單與 GitHub 更新服務
 │   │   └── SystemOptimizer.App\              # 莫蘭迪現代 WPF UI 介面
 │   │       ├── Styles\MorandiTheme.xaml      # 膠囊導航與莫蘭迪樣式庫
 │   │       ├── ViewModels\MainViewModel.cs   # 即時監控、大檔搜尋與命令調度層

@@ -133,6 +133,15 @@ public class CoreTests
         }
     }
 
+    [Theory]
+    [InlineData("v6.2.2", "6.2.1", true)]
+    [InlineData("6.2.1", "6.2.1", false)]
+    [InlineData("6.2.0", "6.2.1", false)]
+    public void GitHubUpdateService_ComparesReleaseVersions(string latestVersion, string currentVersion, bool expected)
+    {
+        Assert.Equal(expected, GitHubUpdateService.IsNewerVersion(latestVersion, currentVersion));
+    }
+
     private static void CreateFileWithLength(string path, long length)
     {
         using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write);

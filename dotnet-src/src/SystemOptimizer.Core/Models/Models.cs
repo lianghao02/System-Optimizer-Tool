@@ -123,3 +123,5 @@ public record StorageScanResult(
 
 public record TimeRangeOption(string DisplayName, int Days);
 public record SizeFilterOption(string DisplayName, int Megabytes);
+
+public record LatestReleaseInfo(string Version, string ReleaseUrl, string? DownloadUrl, string ReleaseNotes);
