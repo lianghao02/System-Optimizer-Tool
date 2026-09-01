@@ -2,12 +2,12 @@
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
 [![WPF](https://img.shields.io/badge/WPF-Windows-brightgreen.svg)]()
-[![Releases](https://img.shields.io/badge/Release-v6.2.1-success.svg)](https://github.com/lianghao02/System-Optimizer-Tool/releases)
+[![Releases](https://img.shields.io/badge/Release-v6.2.2-success.svg)](https://github.com/lianghao02/System-Optimizer-Tool/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 本工具為專為 Windows 10/11 設計之輕量級系統快取安全清理、實體記憶體即時深度釋放、磁碟巨型大檔案透視、開機自啟動管理與系統匣常駐工具。
 
-本專案已完成 **C# .NET 8 / WPF 原生單檔架構 (v6.2.1)** 全面升級，提供**零環境依賴免安裝版**與**極致輕量版**雙版本，原生秒開、莫蘭迪現代 UI、系統匣常駐與安全白名單防禦。
+本專案已完成 **C# .NET 8 / WPF 原生單檔架構 (v6.2.2)** 全面升級，提供**零環境依賴免安裝版**與**極致輕量版**雙版本，原生秒開、莫蘭迪現代 UI、系統匣常駐與安全白名單防禦。
 
 ---
 
@@ -17,11 +17,11 @@
 
 | 下載檔案名稱 | 檔案大小 | 適用情境與說明 | 推薦度 |
 |:---|:---:|:---|:---:|
-| **`SystemOptimizer-v6.2.1-Standalone-x64.exe`** | ≈ **68 MB** | **【免安裝獨立完整版】** 內嵌完整 .NET 8 執行階段，**任何 Windows 電腦下載後直接雙擊執行**，完全不需安裝任何額外套件或環境。 | 🌟 **強烈推薦** |
-| **`SystemOptimizer-v6.2.1-Slim-x64.exe`** | ≈ **0.4 MB** | **【極致輕量版】** 約 400 KB，需電腦已安裝 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。適合開發者或已具備執行環境的電腦。 | 💡 自行選用 |
+| **`SystemOptimizer-v6.2.2-Standalone-x64.exe`** | ≈ **68 MB** | **【免安裝獨立完整版】** 內嵌完整 .NET 8 執行階段，**任何 Windows 電腦下載後直接雙擊執行**，完全不需安裝任何額外套件或環境。 | 🌟 **強烈推薦** |
+| **`SystemOptimizer-v6.2.2-Slim-x64.exe`** | ≈ **0.4 MB** | **【極致輕量版】** 約 400 KB，需電腦已安裝 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。適合開發者或已具備執行環境的電腦。 | 💡 自行選用 |
 
 > [!TIP]
-> **一般使用者建議直接下載 `SystemOptimizer-v6.2.1-Standalone-x64.exe`**，單一檔案免安裝、即開即用，放到桌面或任何資料夾點擊即可執行。
+> **一般使用者建議直接下載 `SystemOptimizer-v6.2.2-Standalone-x64.exe`**，單一檔案免安裝、即開即用，放到桌面或任何資料夾點擊即可執行。
 
 ---
 
@@ -76,7 +76,7 @@ dotnet test SystemOptimizer.sln --no-restore --nologo
 D:\Development\GitHub\06_System-Optimizer-Tool\
 ├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開 (預設呼叫 Standalone 免安裝版)
 ├── 啟動Python傳統版(備援).bat                # 📦 歷史 Python 備援啟動入口
-├── README.md                                 # 專案總說明文件 (v6.2.1)
+├── README.md                                 # 專案總說明文件 (v6.2.2)
 ├── CHANGELOG.md                              # 版本異動歷程
 ├── version.txt                               # 應用程式與 Release 比對版本來源
 ├── LICENSE                                   # MIT 開源授權條款
