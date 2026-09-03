@@ -45,7 +45,7 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="CheckUpdatesButton" Content="🔄 檢查更新" Click="CheckUpdates_Click" Style="{StaticResource MorandiOutlineButton}" Margin="0,0,10,0" ToolTip="透過 GitHub Release 檢查最新版本"/>
-                    <Button Content="⚡ 釋放記憶體" Command="{Binding OptimizeMemoryCommand}" Style="{StaticResource MorandiButton}" Margin="0,0,10,0"/>
+                    <Button Content="⚡ 整理記憶體" Command="{Binding OptimizeMemoryCommand}" Style="{StaticResource MorandiButton}" Margin="0,0,10,0"/>
                     <Button Content="🔍 掃描系統快取" Command="{Binding ScanCacheCommand}" Style="{StaticResource MorandiSuccessButton}"/>
                 </StackPanel>
             </Grid>
@@ -98,15 +98,15 @@
                             <!-- 釋放反饋與說明 -->
                             <Border Grid.Row="3" Background="#F4F7FB" CornerRadius="8" Padding="12,10" Margin="0,0,0,16">
                                 <StackPanel>
-                                    <TextBlock Text="💡 原生記憶體釋放說明：" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock Text="此操作會要求 Windows 整理各程序工作集與 Standby 快取；可用記憶體變化屬暫時狀態，Windows 仍會依需要重新配置。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,4" TextWrapping="Wrap"/>
+                                    <TextBlock Text="💡 原生記憶體整理與診斷說明：" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock Text="Windows 具備成熟的動態記憶體管理機制，平時無須頻繁手動釋放。此操作僅供除錯診斷或遭遇特定記憶體壓力時，請求系統整理各程序工作集並修剪待命快取；釋放後數值將隨應用程式運作動態回升。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,4" TextWrapping="Wrap"/>
                                     <TextBlock Text="{Binding LastFreedMemoryText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- 記憶體操作按鈕群組 -->
                             <StackPanel Grid.Row="5" Orientation="Horizontal">
-                                <Button Content="⚡ 立即極速釋放記憶體" Command="{Binding OptimizeMemoryCommand}" Style="{StaticResource MorandiButton}" Margin="0,0,10,0"/>
+                                <Button Content="⚡ 執行工作集與快取整理" Command="{Binding OptimizeMemoryCommand}" Style="{StaticResource MorandiButton}" Margin="0,0,10,0"/>
                                 <Button Content="🔄 立即刷新" Command="{Binding RefreshMemoryCommand}" Style="{StaticResource MorandiOutlineButton}"/>
                             </StackPanel>
                         </Grid>
@@ -179,6 +179,7 @@
                                 <TextBlock Text="清理前會顯示已選目標、檔案數與預估空間，確認後才執行；可隨時取消。" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="🛡️ 僅選安全項目 (預設)" Command="{Binding SelectSafeCacheOnlyCommand}" Style="{StaticResource MorandiButton}" Padding="10,5" FontSize="12" Margin="0,0,6,0" ToolTip="僅勾選無後續效能代價之暫存檔，保護網頁與繪圖速度"/>
                                 <Button Content="全選" Command="{Binding SelectAllCacheCommand}" Style="{StaticResource MorandiOutlineButton}" Padding="10,5" FontSize="12" Margin="0,0,6,0"/>
                                 <Button Content="取消全選" Command="{Binding UnselectAllCacheCommand}" Style="{StaticResource MorandiOutlineButton}" Padding="10,5" FontSize="12"/>
                             </StackPanel>
@@ -194,11 +195,13 @@
                                             </DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
-                                    <GridViewColumn Header="快取類別" Width="200" DisplayMemberBinding="{Binding Category}"/>
-                                    <GridViewColumn Header="佔用大小" Width="110" DisplayMemberBinding="{Binding FormattedSize}"/>
-                                    <GridViewColumn Header="檔案數" Width="80" DisplayMemberBinding="{Binding FileCount}"/>
-                                    <GridViewColumn Header="運行鎖定狀態" Width="240" DisplayMemberBinding="{Binding StatusNote}"/>
-                                    <GridViewColumn Header="實體路徑" Width="300" DisplayMemberBinding="{Binding Path}"/>
+                                    <GridViewColumn Header="清理分級" Width="95" DisplayMemberBinding="{Binding RiskLevelBadge}"/>
+                                    <GridViewColumn Header="快取類別" Width="185" DisplayMemberBinding="{Binding Category}"/>
+                                    <GridViewColumn Header="佔用大小" Width="100" DisplayMemberBinding="{Binding FormattedSize}"/>
+                                    <GridViewColumn Header="檔案數" Width="70" DisplayMemberBinding="{Binding FileCount}"/>
+                                    <GridViewColumn Header="副作用與效能說明" Width="260" DisplayMemberBinding="{Binding SideEffectNotice}"/>
+                                    <GridViewColumn Header="運行鎖定狀態" Width="180" DisplayMemberBinding="{Binding StatusNote}"/>
+                                    <GridViewColumn Header="實體路徑" Width="260" DisplayMemberBinding="{Binding Path}"/>
                                 </GridView>
                             </ListView.View>
                         </ListView>

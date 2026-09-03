@@ -167,6 +167,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ScanCacheCommand { get; }
     public ICommand CleanCacheCommand { get; }
     public ICommand SelectAllCacheCommand { get; }
+    public ICommand SelectSafeCacheOnlyCommand { get; }
     public ICommand UnselectAllCacheCommand { get; }
     public ICommand LoadStartupCommand { get; }
     public ICommand LoadDrivesCommand { get; }
@@ -181,6 +182,7 @@ public class MainViewModel : INotifyPropertyChanged
         ScanCacheCommand = new RelayCommand(async () => await ScanCacheAsync());
         CleanCacheCommand = new RelayCommand(async () => await CleanCacheAsync());
         SelectAllCacheCommand = new RelayCommand(SelectAllCache);
+        SelectSafeCacheOnlyCommand = new RelayCommand(SelectSafeCacheOnly);
         UnselectAllCacheCommand = new RelayCommand(UnselectAllCache);
         LoadStartupCommand = new RelayCommand(LoadStartupItems);
         LoadDrivesCommand = new RelayCommand(LoadDriveInfos);
@@ -437,6 +439,15 @@ public class MainViewModel : INotifyPropertyChanged
     public void SelectAllCache()
     {
         foreach (var item in CacheItems) item.IsSelected = true;
+        OnPropertyChanged(nameof(TotalSelectedCacheSizeFormatted));
+    }
+
+    public void SelectSafeCacheOnly()
+    {
+        foreach (var item in CacheItems)
+        {
+            item.IsSelected = (item.RiskLevel == CacheRiskLevel.Safe);
+        }
         OnPropertyChanged(nameof(TotalSelectedCacheSizeFormatted));
     }
 

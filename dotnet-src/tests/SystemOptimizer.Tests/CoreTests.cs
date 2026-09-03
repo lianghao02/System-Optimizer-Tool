@@ -57,6 +57,46 @@ public class CoreTests
     }
 
     [Fact]
+    public void CacheCleaner_DefaultTargets_DistinguishesSafeAndAdvancedRiskLevels()
+    {
+        var cleaner = new CacheCleaner();
+        var targets = cleaner.GetDefaultTargets();
+
+        // 驗證存在安全項目與進階項目
+        var safeTargets = targets.Where(t => t.RiskLevel == SystemOptimizer.Core.Models.CacheRiskLevel.Safe).ToList();
+        var advancedTargets = targets.Where(t => t.RiskLevel == SystemOptimizer.Core.Models.CacheRiskLevel.Advanced).ToList();
+
+        Assert.NotEmpty(safeTargets);
+        Assert.NotEmpty(advancedTargets);
+
+        // 關鍵驗證：可能導致網頁/圖片變慢或著色器重編譯的項目，必須被標註為 Advanced 且帶有副作用說明
+        var browserAndShaderTargets = targets.Where(t => 
+            t.Category.Contains("網頁快取") || 
+            t.Category.Contains("代碼快取") || 
+            t.Category.Contains("著色器") || 
+            t.Category.Contains("縮圖快取")).ToList();
+
+        Assert.NotEmpty(browserAndShaderTargets);
+        Assert.All(browserAndShaderTargets, target =>
+        {
+            Assert.Equal(SystemOptimizer.Core.Models.CacheRiskLevel.Advanced, target.RiskLevel);
+            Assert.False(string.IsNullOrWhiteSpace(target.SideEffectNotice));
+        });
+    }
+
+    [Fact]
+    public void CacheItem_DefaultsSelectedStateBasedOnRiskLevel()
+    {
+        var safeItem = new SystemOptimizer.Core.Models.CacheItem("系統暫存", "C:\\Temp", 1024, 1, "", SystemOptimizer.Core.Models.CacheRiskLevel.Safe);
+        var advancedItem = new SystemOptimizer.Core.Models.CacheItem("網頁快取", "C:\\Cache", 2048, 2, "", SystemOptimizer.Core.Models.CacheRiskLevel.Advanced, "需重新下載");
+
+        Assert.True(safeItem.IsSelected);
+        Assert.False(advancedItem.IsSelected);
+        Assert.Equal("一般安全", safeItem.RiskLevelBadge);
+        Assert.Equal("⚠️ 進階快取", advancedItem.RiskLevelBadge);
+    }
+
+    [Fact]
     public async Task CacheCleaner_DoesNotTraverseDirectoryJunction()
     {
         var root = Path.Combine(Path.GetTempPath(), $"SystemOptimizerTests-{Guid.NewGuid():N}");

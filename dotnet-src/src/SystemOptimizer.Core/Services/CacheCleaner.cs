@@ -14,7 +14,14 @@ public class CacheCleaner
     private readonly SafetyGuard _safetyGuard = new();
     private readonly Func<List<CacheTarget>>? _targetProvider;
 
-    public record CacheTarget(string Category, string Path, string Description, string? AssociatedProcess = null);
+    public record CacheTarget(
+        string Category, 
+        string Path, 
+        string Description, 
+        CacheRiskLevel RiskLevel = CacheRiskLevel.Safe,
+        string SideEffectNotice = "",
+        string? AssociatedProcess = null
+    );
 
     public CacheCleaner(Func<List<CacheTarget>>? targetProvider = null)
     {
@@ -27,80 +34,80 @@ public class CacheCleaner
 
         var userTemp = Path.GetTempPath();
         if (Directory.Exists(userTemp))
-            list.Add(new CacheTarget("使用者暫存檔", userTemp, "應用程式運行暫留檔"));
+            list.Add(new CacheTarget("使用者暫存檔", userTemp, "應用程式運行暫留檔", CacheRiskLevel.Safe));
 
         var winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         var winTemp = Path.Combine(winDir, "Temp");
         if (Directory.Exists(winTemp))
-            list.Add(new CacheTarget("Windows 系統暫存", winTemp, "系統更新與安裝殘留暫存"));
+            list.Add(new CacheTarget("Windows 系統暫存", winTemp, "系統更新與安裝殘留暫存", CacheRiskLevel.Safe));
 
         var prefetch = Path.Combine(winDir, "Prefetch");
         if (Directory.Exists(prefetch))
-            list.Add(new CacheTarget("Windows 預先讀取檔", prefetch, "系統過期預讀快取"));
+            list.Add(new CacheTarget("Windows 預先讀取檔", prefetch, "系統過期預讀快取", CacheRiskLevel.Advanced, "清除後常用軟體首次啟動需重新建立預讀快取"));
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
         var crashDumps = Path.Combine(localAppData, "CrashDumps");
         if (Directory.Exists(crashDumps))
-            list.Add(new CacheTarget("應用程式崩潰傾印 (Dumps)", crashDumps, "程式錯誤紀錄 DUMP"));
+            list.Add(new CacheTarget("應用程式崩潰傾印 (Dumps)", crashDumps, "程式錯誤紀錄 DUMP", CacheRiskLevel.Safe));
 
         var softDist = Path.Combine(winDir, "SoftwareDistribution", "Download");
         if (Directory.Exists(softDist))
-            list.Add(new CacheTarget("Windows Update 安裝快取", softDist, "已安裝之更新快取檔"));
+            list.Add(new CacheTarget("Windows Update 安裝快取", softDist, "已安裝之更新快取檔", CacheRiskLevel.Advanced, "清除後若需重新檢驗或重試更新將重新下載"));
 
         var deliveryOpt = Path.Combine(winDir, "SoftwareDistribution", "DeliveryOptimization");
         if (Directory.Exists(deliveryOpt))
-            list.Add(new CacheTarget("Windows 傳遞最佳化快取", deliveryOpt, "對等更新傳遞快取"));
+            list.Add(new CacheTarget("Windows 傳遞最佳化快取", deliveryOpt, "對等更新傳遞快取", CacheRiskLevel.Safe));
 
         var thumbCache = Path.Combine(localAppData, "Microsoft", "Windows", "Explorer");
         if (Directory.Exists(thumbCache))
-            list.Add(new CacheTarget("Windows 檔案總管縮圖快取", thumbCache, "圖檔與影片縮圖資料庫"));
+            list.Add(new CacheTarget("Windows 檔案總管縮圖快取", thumbCache, "圖檔與影片縮圖資料庫", CacheRiskLevel.Advanced, "清除後開啟資料夾需重新即時解碼圖片生成縮圖"));
 
         var d3dCache = Path.Combine(localAppData, "D3DSCache");
         if (Directory.Exists(d3dCache))
-            list.Add(new CacheTarget("DirectX 著色器快取", d3dCache, "DirectX 3D 圖形著色快取"));
+            list.Add(new CacheTarget("DirectX 著色器快取", d3dCache, "DirectX 3D 圖形著色快取", CacheRiskLevel.Advanced, "清除後遊戲或 3D 繪圖初期可能出現微頓挫"));
 
         var nvCache = Path.Combine(localAppData, "NVIDIA", "DXCache");
         if (Directory.Exists(nvCache))
-            list.Add(new CacheTarget("NVIDIA 著色器快取", nvCache, "NVIDIA 顯示卡圖形著色快取"));
+            list.Add(new CacheTarget("NVIDIA 著色器快取", nvCache, "NVIDIA 顯示卡圖形著色快取", CacheRiskLevel.Advanced, "清除後顯示卡需重新編譯著色快取"));
 
         var winLogs = Path.Combine(winDir, "Logs");
         if (Directory.Exists(winLogs))
-            list.Add(new CacheTarget("Windows 系統記錄檔 (Logs)", winLogs, "系統維護與安裝記錄檔"));
+            list.Add(new CacheTarget("Windows 系統記錄檔 (Logs)", winLogs, "系統維護與安裝記錄檔", CacheRiskLevel.Safe));
 
         // Google Chrome
         var chromeCache = Path.Combine(localAppData, "Google", "Chrome", "User Data", "Default", "Cache", "Cache_Data");
         if (Directory.Exists(chromeCache))
-            list.Add(new CacheTarget("Google Chrome 網頁快取", chromeCache, "Chrome 瀏覽器暫存檔", "chrome"));
+            list.Add(new CacheTarget("Google Chrome 網頁快取", chromeCache, "Chrome 瀏覽器暫存檔", CacheRiskLevel.Advanced, "清除後常訪問網頁圖片與靜態資源需重新下載", "chrome"));
 
         var chromeCodeCache = Path.Combine(localAppData, "Google", "Chrome", "User Data", "Default", "Code Cache");
         if (Directory.Exists(chromeCodeCache))
-            list.Add(new CacheTarget("Google Chrome 代碼快取", chromeCodeCache, "JS/Wasm 編譯快取", "chrome"));
+            list.Add(new CacheTarget("Google Chrome 代碼快取", chromeCodeCache, "JS/Wasm 編譯快取", CacheRiskLevel.Advanced, "清除後網頁 JavaScript 腳本需重新編譯", "chrome"));
 
         // Microsoft Edge
         var edgeCache = Path.Combine(localAppData, "Microsoft", "Edge", "User Data", "Default", "Cache", "Cache_Data");
         if (Directory.Exists(edgeCache))
-            list.Add(new CacheTarget("Microsoft Edge 網頁快取", edgeCache, "Edge 瀏覽器暫存檔", "msedge"));
+            list.Add(new CacheTarget("Microsoft Edge 網頁快取", edgeCache, "Edge 瀏覽器暫存檔", CacheRiskLevel.Advanced, "清除後常訪問網頁圖片與靜態資源需重新下載", "msedge"));
 
         var edgeCodeCache = Path.Combine(localAppData, "Microsoft", "Edge", "User Data", "Default", "Code Cache");
         if (Directory.Exists(edgeCodeCache))
-            list.Add(new CacheTarget("Microsoft Edge 代碼快取", edgeCodeCache, "Edge JS/Wasm 快取", "msedge"));
+            list.Add(new CacheTarget("Microsoft Edge 代碼快取", edgeCodeCache, "Edge JS/Wasm 快取", CacheRiskLevel.Advanced, "清除後網頁 JavaScript 腳本需重新編譯", "msedge"));
 
         // VS Code
         var vscodeCache = Path.Combine(appData, "Code", "Cache");
         if (Directory.Exists(vscodeCache))
-            list.Add(new CacheTarget("VS Code 編輯器快取", vscodeCache, "Visual Studio Code 暫存", "Code"));
+            list.Add(new CacheTarget("VS Code 編輯器快取", vscodeCache, "Visual Studio Code 暫存", CacheRiskLevel.Advanced, "清除後編輯器相關快取需重新載入", "Code"));
 
         // Discord
         var discordCache = Path.Combine(appData, "discord", "Cache", "Cache_Data");
         if (Directory.Exists(discordCache))
-            list.Add(new CacheTarget("Discord 通訊軟體快取", discordCache, "Discord 圖片與語音快取", "Discord"));
+            list.Add(new CacheTarget("Discord 通訊軟體快取", discordCache, "Discord 圖片與語音快取", CacheRiskLevel.Advanced, "清除後群組頭貼與圖片需重新載入", "Discord"));
 
         // Spotify
         var spotifyCache = Path.Combine(localAppData, "Spotify", "Storage");
         if (Directory.Exists(spotifyCache))
-            list.Add(new CacheTarget("Spotify 音樂串流快取", spotifyCache, "本機離線串流快取", "Spotify"));
+            list.Add(new CacheTarget("Spotify 音樂串流快取", spotifyCache, "本機離線串流快取", CacheRiskLevel.Advanced, "清除後離線串流快取需重新串流下載", "Spotify"));
 
         return list;
     }
@@ -184,7 +191,14 @@ public class CacheCleaner
                         }
                     }
 
-                    results.Add(new CacheItem(target.Category, target.Path, size, count, note));
+                    results.Add(new CacheItem(
+                        target.Category, 
+                        target.Path, 
+                        size, 
+                        count, 
+                        note, 
+                        target.RiskLevel, 
+                        target.SideEffectNotice));
                 }
             }
 

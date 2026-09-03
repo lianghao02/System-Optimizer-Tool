@@ -45,12 +45,12 @@ public partial class MainWindow : Window
 
             var contextMenu = new ContextMenuStrip();
             contextMenu.Items.Add("顯示主畫面", null, (s, e) => ShowAndRestore());
-            contextMenu.Items.Add("⚡ 立即釋放記憶體", null, async (s, e) =>
+            contextMenu.Items.Add("⚡ 整理工作集與快取", null, async (s, e) =>
             {
                 if (DataContext is MainViewModel vm)
                 {
                     await vm.OptimizeMemoryAsync();
-                    _notifyIcon.ShowBalloonTip(2000, "記憶體優化", vm.StatusMessage, ToolTipIcon.Info);
+                    _notifyIcon.ShowBalloonTip(2000, "記憶體診斷與整理", vm.StatusMessage, ToolTipIcon.Info);
                 }
             });
             contextMenu.Items.Add(new ToolStripSeparator());

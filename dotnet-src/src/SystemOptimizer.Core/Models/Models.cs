@@ -9,6 +9,12 @@ public record SystemMetrics(
     int ProcessCount
 );
 
+public enum CacheRiskLevel
+{
+    Safe,       // 一般安全清理 (低副作用，適合日常與預設選取)
+    Advanced   // 進階快取清理 (具效能與重建代價，預設不選取並揭露副作用)
+}
+
 public class CacheItem
 {
     public string Category { get; set; }
@@ -17,16 +23,35 @@ public class CacheItem
     public int FileCount { get; set; }
     public bool IsSelected { get; set; } = true;
     public string StatusNote { get; set; } = "";
+    public CacheRiskLevel RiskLevel { get; set; } = CacheRiskLevel.Safe;
+    public string SideEffectNotice { get; set; } = "";
+
+    public string RiskLevelBadge => RiskLevel switch
+    {
+        CacheRiskLevel.Safe => "一般安全",
+        CacheRiskLevel.Advanced => "⚠️ 進階快取",
+        _ => "一般"
+    };
 
     public string FormattedSize => FormatBytes(FileSizeBytes);
 
-    public CacheItem(string category, string path, long fileSizeBytes, int fileCount, string statusNote = "")
+    public CacheItem(
+        string category, 
+        string path, 
+        long fileSizeBytes, 
+        int fileCount, 
+        string statusNote = "",
+        CacheRiskLevel riskLevel = CacheRiskLevel.Safe,
+        string sideEffectNotice = "")
     {
         Category = category;
         Path = path;
         FileSizeBytes = fileSizeBytes;
         FileCount = fileCount;
         StatusNote = statusNote;
+        RiskLevel = riskLevel;
+        SideEffectNotice = sideEffectNotice;
+        IsSelected = (riskLevel == CacheRiskLevel.Safe);
     }
 
     public static string FormatBytes(long bytes)
