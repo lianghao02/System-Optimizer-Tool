@@ -18,8 +18,6 @@
 ├── dotnet-src/                               # 🌟【主力發行】C# .NET 8 WPF 原生單檔引擎
 │   ├── SystemOptimizer.sln                   # Visual Studio 解決方案檔
 │   ├── build_release.ps1                     # 一鍵建置發布腳本
-│   ├── publish/
-│   │   └── SystemOptimizer.App.exe           # 0.30 MB 原生單檔執行檔
 │   ├── src/
 │   │   ├── SystemOptimizer.Core/             # Win32 原生記憶體、快取、大檔、白名單核心
 │   │   │   ├── Native/NativeMethods.cs       # P/Invoke API 定義 (EmptyWorkingSet, NtSetSystemInformation)
@@ -33,6 +31,10 @@
 │   └── tests/
 │       └── SystemOptimizer.Tests/            # xUnit 自動化單元測試套件
 │
+├── scripts/run.ps1                          # 啟動時優先選擇獨立版，可只驗證路徑
+├── dist/                                    # 發行輸出；與 dotnet-src 原始碼分離
+│   ├── standalone/SystemOptimizer.App.exe   # 免安裝獨立版
+│   └── slim/SystemOptimizer.App.exe         # 需 .NET 8 Runtime 的輕量版
 └── legacy-python/                            # 📦【歷史備援】原始 Python 3.13 引擎
     ├── main.py                               # 原始 CustomTkinter 入口
     ├── engine/                               # 原始 Python 邏輯模組

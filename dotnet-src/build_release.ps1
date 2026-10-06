@@ -2,7 +2,8 @@
 param(
     [ValidateSet('all', 'slim', 'standalone')]
     [string]$Target = 'all',
-    [switch]$RunAfterBuild
+    [switch]$RunAfterBuild,
+    [switch]$CheckOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,9 +20,15 @@ Write-Host "【SystemOptimizer.App】C# .NET 8 原生單檔編譯與雙版本發
 Write-Host "=================================================================" -ForegroundColor Cyan
 
 $appCsproj = Join-Path $projectDir 'src\SystemOptimizer.App\SystemOptimizer.App.csproj'
-$baseOutputDir = Join-Path $projectDir 'publish'
+$baseOutputDir = Join-Path (Split-Path $projectDir -Parent) 'dist'
 $slimDir = Join-Path $baseOutputDir 'slim'
 $standaloneDir = Join-Path $baseOutputDir 'standalone'
+
+if ($CheckOnly) {
+    if (-not (Test-Path -LiteralPath $appCsproj)) { throw '找不到建置專案。' }
+    [pscustomobject]@{ Project = $appCsproj; Output = $baseOutputDir; Target = $Target }
+    return
+}
 
 # 1. 輕量版 (需要 .NET 8 Desktop Runtime，體積 < 0.5 MB)
 if ($Target -in @('all', 'slim')) {
@@ -34,7 +41,7 @@ if ($Target -in @('all', 'slim')) {
         Write-Host "      ✓ 輕量版產出：$slimExe" -ForegroundColor Gray
         Write-Host "      ✓ 檔案體積：$([math]::Round($size, 2)) MB (極致輕量)" -ForegroundColor Green
         
-        # 複製一份到 publish 根目錄維持舊版捷徑相容
+        # 複製一份到 dist 根目錄供輕量入口使用
         Copy-Item -Path $slimExe -Destination (Join-Path $baseOutputDir 'SystemOptimizer.App.exe') -Force
     }
 }
@@ -64,6 +71,6 @@ if ($RunAfterBuild) {
         $targetExe = Join-Path $slimDir 'SystemOptimizer.App.exe'
     }
     Write-Host "正在啟動應用程式 ($targetExe)..." -ForegroundColor Yellow
-    Start-Process $targetExe
+    Start-Process -FilePath $targetExe -WindowStyle Normal
 }
 

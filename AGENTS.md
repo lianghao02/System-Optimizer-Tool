@@ -7,8 +7,8 @@
 ## 1. 技術棧與建置規範
 - **主力引擎**：C# 12 / .NET 8.0 WPF（位於 `dotnet-src/`）。保持原生 Win32、無外部大型依賴與極致秒開架構。
 - **發布標準**：`build_release.ps1` 雙版本發布：
-  - `publish/standalone/SystemOptimizer.App.exe`：免安裝獨立單檔（內嵌 Runtime，約 68MB，一般使用者優先）。
-  - `publish/slim/SystemOptimizer.App.exe`：極致輕量版（< 0.5 MB，需本機 .NET 8 Runtime）。
+  - `dist/standalone/SystemOptimizer.App.exe`：免安裝獨立單檔（內嵌 Runtime，約 68MB，一般使用者優先）。
+  - `dist/slim/SystemOptimizer.App.exe`：極致輕量版（< 0.5 MB，需本機 .NET 8 Runtime）。
 - **.NET SDK 本機環境**：`.NET 8.0.406 SDK` 位於 `%LOCALAPPDATA%\Microsoft\dotnet`。執行 `dotnet` CLI 時需確保 `DOTNET_ROOT` 指向該目錄，且 `PATH` 優先置入。
 - **歷史備援界限**：原始 Python 程式碼封存於 `legacy-python/` 作為歷史功能備援與比對，未經指示請勿隨意修改或刪除。
 
@@ -44,10 +44,10 @@
 ---
 
 ## 4. 共用 Skill 引用與動態解析 (Discovery Rule)
-- 本專案遵循 LiangHao 全生態系標準規範 Skill：`lianghao-development`（Canonical Source 位於 `Dev-Control-Center/skills/lianghao-development`，v1.0.0）。
+- 本專案遵循 LiangHao 全生態系標準規範 Skill：`lianghao-development`（Canonical Source 位於 `Dev-Control-Center/configs/skills/lianghao-development`，v1.0.0）。
 - Agent 開始工作時：
   1. 優先使用目前環境可自動發現的 `lianghao-development` Skill
-  2. 若平台未自動載入，使用既有動態解析順序：環境變數 `LIANGHAO_SKILL_HOME` ➜ `%USERPROFILE%\.lianghao\config.json` ➜ 鄰近工作區探索 `..\00_Dev-Control-Center\skills\lianghao-development` 或呼叫其 `skill-resolver.ps1`
+  2. 若平台未自動載入，使用既有動態解析順序：環境變數 `LIANGHAO_SKILL_HOME` ➜ `%USERPROFILE%\.lianghao\config.json` ➜ 鄰近工作區探索 `..\00_Dev-Control-Center\configs\skills\lianghao-development` 或呼叫其 `skill-resolver.ps1`
   3. 先讀 Shared Skill
   4. 再讀本專案 `AGENTS.md`
   5. 再讀目前 `HANDOFF.md` / `IMPLEMENTATION_PLAN.md`

@@ -1,7 +1,7 @@
 # ⚡ Windows 系統極速優化工具 (System Optimizer Tool)
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
-[![WPF](https://img.shields.io/badge/WPF-Windows-brightgreen.svg)]()
+[![WPF](https://img.shields.io/badge/WPF-Windows-brightgreen.svg)](ARCHITECTURE.md)
 [![Releases](https://img.shields.io/badge/Release-v6.2.3-success.svg)](https://github.com/lianghao02/System-Optimizer-Tool/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -10,6 +10,14 @@
 本專案已完成 **C# .NET 8 / WPF 原生單檔架構 (v6.2.3)** 全面升級，提供**零環境依賴免安裝版**與**極致輕量版**雙版本，原生秒開、莫蘭迪現代 UI、系統匣常駐與安全白名單防禦。
 
 ---
+
+## 專案概念與開發原因
+
+系統優化工具集中呈現 Windows 記憶體整理、快取清理與相關維護操作。開發動機是這些功能散落於多個工具與設定頁，使用者不容易知道清理範圍或實際效果。
+
+現行採 .NET／WPF 原生架構；維護流程以掃描結果、操作邊界與前後數值為主，將一般快取與進階清理分開。舊 Python 實作屬於歷史版本，不是目前主要啟動環境。
+
+**典型流程**：查看系統狀態 → 掃描可清理項目 → 確認勾選範圍 → 執行 → 檢查結果。
 
 ## 📥 下載與安裝指引 (Download & Quick Start)
 
@@ -73,7 +81,7 @@ dotnet test SystemOptimizer.sln --no-restore --nologo
 ## 📂 專案目錄結構
 
 ```text
-D:\Development\GitHub\06_System-Optimizer-Tool\
+06_System-Optimizer-Tool\
 ├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開 (預設呼叫 Standalone 免安裝版)
 ├── 啟動Python傳統版(備援).bat                # 📦 歷史 Python 備援啟動入口
 ├── README.md                                 # 專案總說明文件 (v6.2.3)
@@ -88,9 +96,6 @@ D:\Development\GitHub\06_System-Optimizer-Tool\
 ├── dotnet-src\                               # 🌟【主力發行】C# .NET 8 / WPF 原生單檔引擎
 │   ├── SystemOptimizer.sln                   # Visual Studio 解決方案檔
 │   ├── build_release.ps1                     # 一鍵建置發布腳本
-│   ├── publish\
-│   │   ├── standalone\SystemOptimizer.App.exe # 約 68 MB、免安裝獨立版
-│   │   └── slim\SystemOptimizer.App.exe      # 約 0.4 MB、需 .NET 8 Runtime
 │   ├── src\
 │   │   ├── SystemOptimizer.Core\             # Win32 原生記憶體、快取、大檔、安全核心
 │   │   │   ├── Native\NativeMethods.cs       # P/Invoke API 定義
@@ -105,6 +110,10 @@ D:\Development\GitHub\06_System-Optimizer-Tool\
 │   └── tests\
 │       └── SystemOptimizer.Tests\            # xUnit 自動化單元測試套件
 │
+├── scripts\run.ps1                           # 啟動與 -ValidateOnly 路徑檢查
+├── dist\                                    # 不提交 Git 的現行發行成品
+│   ├── standalone\SystemOptimizer.App.exe   # 約 68 MB、免安裝獨立版
+│   └── slim\SystemOptimizer.App.exe         # 約 0.4 MB、需 .NET 8 Runtime
 └── legacy-python\                            # 📦【歷史封存】原始 Python 3.13 引擎 (不再維護)
     ├── README.md                             # 歷史封存說明文件
     ├── main.py                               # 原始 CustomTkinter 入口
@@ -115,3 +124,19 @@ D:\Development\GitHub\06_System-Optimizer-Tool\
 ```
 
 詳細版本異動請參閱 [CHANGELOG.md](CHANGELOG.md)。
+
+## 已知 Bug、限制與疑難排解
+
+以下區分已確認問題、功能限制及待驗證項目；歷史修正不代表舊發行包已自動更新，也不代表本次文件更新重新完成所有功能測試。
+
+| 狀態 | 情境 | 處理方式 |
+|---|---|---|
+| 效果限制 | 工作集下降不等於永久增加實體記憶體，也不保證所有程式加速。 | 依實際前後量測判讀；程式再次使用資料時可能重新載入。 |
+| 清理限制 | 瀏覽器或 Shader 等進階快取清除後需要重建。 | 確認影響後才勾選進階項目；掃描到的容量不等於最終可刪除容量。 |
+| 系統限制 | 使用中的檔案、權限不足或重解析點影響清理。 | 查看略過與失敗紀錄，不為了清乾淨而任意擴大刪除範圍或提高權限。 |
+
+歷史修正包括 WPF 圖示資源、快取清理邊界與記憶體數值表達，詳見 [CHANGELOG.md](CHANGELOG.md)。目前建置輸出集中於根目錄 dist，啟動與建置說明以現行 .NET 版本為準。
+
+### 問題回報
+
+請提供使用版本／啟動方式、作業系統與相關環境、重現步驟、預期及實際結果，以及去識別的錯誤訊息或最小樣本。先保留現場與來源資料；不要附真實案件、完整帳號、密碼、Token 或 API Key。版本修正以對應原始碼與發行包為準。

@@ -8,4 +8,4 @@
 
 - **原始環境**：Windows 10/11、Python 3.13、`customtkinter`
 - **備援啟動**：若在特殊環境需執行 Python 傳統版，請雙擊專案根目錄的 `啟動Python傳統版(備援).bat`。
-- **正式主力版**：請使用根目錄之 `⚡ 啟動系統優化工具.bat`（執行 `dotnet-src/publish/SystemOptimizer.App.exe`，體積僅 0.30 MB，原生秒開且具備完整安全防禦）。
+- **正式主力版**：請使用根目錄之 `⚡ 啟動系統優化工具.bat`（優先執行 `dist/standalone/SystemOptimizer.App.exe` 免安裝獨立版，找不到時使用 `dist/slim` 輕量版）。

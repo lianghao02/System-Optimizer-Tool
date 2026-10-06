@@ -1,5 +1,7 @@
 # 專案記憶庫 (MEMORY)
 
+目前輸出配置（2026-10-05）：建置成品統一至專案根目錄 `dist/standalone` 與 `dist/slim`；下方早期決策中的 `publish` 路徑為歷史記錄。入口為 `scripts/run.ps1`，核心程式與既有成品內容維持。
+
 ## 1. 重大架構演進決策
 
 ### 決策 1：從 Python 3.13 全面重構遷移為 C# .NET 8 WPF
