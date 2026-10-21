@@ -32,15 +32,9 @@
 │       └── SystemOptimizer.Tests/            # xUnit 自動化單元測試套件
 │
 ├── scripts/run.ps1                          # 啟動時優先選擇獨立版，可只驗證路徑
-├── dist/                                    # 發行輸出；與 dotnet-src 原始碼分離
-│   ├── standalone/SystemOptimizer.App.exe   # 免安裝獨立版
-│   └── slim/SystemOptimizer.App.exe         # 需 .NET 8 Runtime 的輕量版
-└── legacy-python/                            # 📦【歷史備援】原始 Python 3.13 引擎
-    ├── main.py                               # 原始 CustomTkinter 入口
-    ├── engine/                               # 原始 Python 邏輯模組
-    ├── ui/
-    ├── requirements.txt
-    └── setup_and_run.ps1
+└── dist/                                    # 發行輸出；與 dotnet-src 原始碼分離
+    ├── standalone/SystemOptimizer.App.exe   # 免安裝獨立版
+    └── slim/SystemOptimizer.App.exe         # 需 .NET 8 Runtime 的輕量版
 ```
 
 ---

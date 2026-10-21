@@ -10,7 +10,7 @@
   - `dist/standalone/SystemOptimizer.App.exe`：免安裝獨立單檔（內嵌 Runtime，約 68MB，一般使用者優先）。
   - `dist/slim/SystemOptimizer.App.exe`：極致輕量版（< 0.5 MB，需本機 .NET 8 Runtime）。
 - **.NET SDK 本機環境**：`.NET 8.0.406 SDK` 位於 `%LOCALAPPDATA%\Microsoft\dotnet`。執行 `dotnet` CLI 時需確保 `DOTNET_ROOT` 指向該目錄，且 `PATH` 優先置入。
-- **歷史備援界限**：原始 Python 程式碼封存於 `legacy-python/` 作為歷史功能備援與比對，未經指示請勿隨意修改或刪除。
+- **歷史備援**：原 Python 舊版（`legacy-python/`）已於 2026-10-21 移除；需要時可由 Git 歷史取回（移除前最後提交 3aa7cc2）。
 
 ---
 

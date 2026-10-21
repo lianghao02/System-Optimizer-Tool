@@ -111,16 +111,9 @@ dotnet test SystemOptimizer.sln --no-restore --nologo
 │       └── SystemOptimizer.Tests\            # xUnit 自動化單元測試套件
 │
 ├── scripts\run.ps1                           # 啟動與 -ValidateOnly 路徑檢查
-├── dist\                                    # 不提交 Git 的現行發行成品
-│   ├── standalone\SystemOptimizer.App.exe   # 約 68 MB、免安裝獨立版
-│   └── slim\SystemOptimizer.App.exe         # 約 0.4 MB、需 .NET 8 Runtime
-└── legacy-python\                            # 📦【歷史封存】原始 Python 3.13 引擎 (不再維護)
-    ├── README.md                             # 歷史封存說明文件
-    ├── main.py                               # 原始 CustomTkinter 入口
-    ├── engine\                               # 原始 Python 邏輯模組
-    ├── ui\
-    ├── requirements.txt
-    └── setup_and_run.ps1
+└── dist\                                    # 不提交 Git 的現行發行成品
+    ├── standalone\SystemOptimizer.App.exe   # 約 68 MB、免安裝獨立版
+    └── slim\SystemOptimizer.App.exe         # 約 0.4 MB、需 .NET 8 Runtime
 ```
 
 詳細版本異動請參閱 [CHANGELOG.md](CHANGELOG.md)。
