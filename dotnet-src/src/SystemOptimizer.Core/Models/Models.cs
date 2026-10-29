@@ -95,7 +95,10 @@ public record StartupItem(
     string Command,
     string Location,
     bool IsEnabled
-);
+)
+{
+    public string StatusText => IsEnabled ? "已啟用" : "已停用";
+}
 
 public record DriveStorageInfo(
     string DriveLetter,

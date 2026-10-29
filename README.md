@@ -43,6 +43,7 @@
 ### 2. ⚡ Win32 記憶體深度釋放
 - 在儀表板或系統匣右鍵選單點擊「⚡ 立即釋放記憶體」。
 - 原生呼叫 Win32 底層 API 同時清理無效工作集（Working Set）與待命快取清單（Standby List），操作後即時回報釋放容量。
+- 待命快取清理與 `Windows\Temp`、`Prefetch`、Windows Update／傳遞最佳化快取、系統記錄檔等目標需要**系統管理員權限**；以一般權限執行時，這些目標會明確標示未掃描，待命快取則回報原因，不會假裝成功。
 
 ### 3. 🔍 磁碟大檔案透視 (Large File Finder)
 - 進入「大檔案透視」分頁，選擇磁碟機代號並點擊「開始掃描大檔案」。
@@ -83,7 +84,6 @@ dotnet test SystemOptimizer.sln --no-restore --nologo
 ```text
 06_System-Optimizer-Tool\
 ├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開 (預設呼叫 Standalone 免安裝版)
-├── 啟動Python傳統版(備援).bat                # 📦 歷史 Python 備援啟動入口
 ├── README.md                                 # 專案總說明文件 (v6.2.3)
 ├── CHANGELOG.md                              # 版本異動歷程
 ├── version.txt                               # 應用程式與 Release 比對版本來源

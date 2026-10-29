@@ -7,8 +7,7 @@
 ```text
 06_System-Optimizer-Tool/
 ├── ⚡ 啟動系統優化工具.bat                  # 🚀 根目錄一鍵秒開捷徑
-├── 啟動Python傳統版(備援).bat                # 📦 歷史 Python 備援啟動入口
-├── README.md                                 # 專案總說明文件 (v6.1.0)
+├── README.md                                 # 專案總說明文件 (v6.2.3)
 ├── CHANGELOG.md                              # 版本異動紀錄
 ├── AGENTS.md                                 # Agent 專案規範
 ├── ARCHITECTURE.md                           # 本架構說明書
@@ -55,7 +54,11 @@
   - 本機固定磁碟可用容量透視。
   - `ScanLargeFilesAsync`：BFS 遍歷遞迴搜尋巨型大檔案 Top 50，自動略過 Junction / ReparsePoint 與系統隱藏目錄。
 - **`SafetyGuard.cs`**：
-  - 嚴格防刪白名單機制，禁止對 `C:\Windows`, `C:\Program Files` 根目錄等關鍵路徑進行非快取性刪除。
+  - `IsApprovedCacheTarget`：清理目標必須精確命中核准清單，且不得為磁碟根目錄或 `Windows`、`System32`、`Program Files`、使用者設定檔根目錄本身。
+- **`PrivilegeHelper.cs`**：
+  - 管理員偵測與特權啟用（`SeProfileSingleProcessPrivilege`）；待命快取清理與標記 `RequiresAdmin` 的快取目標依此判斷，未提權時如實回報而非靜默失敗。
+- **`StartupManager.cs`**：
+  - 讀取 HKCU／HKLM `Run`，並以 `StartupApproved\Run` 判斷項目實際啟用或停用狀態（目前唯讀）。
 
 ### 2.2 `SystemOptimizer.App` (WPF MVVM 表現層)
 - **`MainViewModel.cs`**：

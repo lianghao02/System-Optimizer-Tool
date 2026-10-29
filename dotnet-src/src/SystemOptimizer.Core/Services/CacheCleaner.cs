@@ -20,12 +20,52 @@ public class CacheCleaner
         string Description, 
         CacheRiskLevel RiskLevel = CacheRiskLevel.Safe,
         string SideEffectNotice = "",
-        string? AssociatedProcess = null
+        string? AssociatedProcess = null,
+        bool RequiresAdmin = false
     );
 
-    public CacheCleaner(Func<List<CacheTarget>>? targetProvider = null)
+    private readonly Func<bool> _isElevated;
+
+    public CacheCleaner(Func<List<CacheTarget>>? targetProvider = null, Func<bool>? isElevated = null)
     {
         _targetProvider = targetProvider;
+        _isElevated = isElevated ?? PrivilegeHelper.IsElevated;
+    }
+
+    private static void AddChromiumTargets(List<CacheTarget> list, string userDataDir, string browser, string process)
+    {
+        if (!Directory.Exists(userDataDir)) return;
+
+        IEnumerable<string> profiles;
+        try
+        {
+            profiles = Directory.EnumerateDirectories(userDataDir)
+                .Where(dir =>
+                {
+                    var name = System.IO.Path.GetFileName(dir);
+                    return name == "Default" || name.StartsWith("Profile ", StringComparison.Ordinal);
+                })
+                .OrderBy(dir => dir, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            return;
+        }
+
+        foreach (var profileDir in profiles)
+        {
+            var profileName = System.IO.Path.GetFileName(profileDir);
+            var suffix = profileName == "Default" ? "" : $" ({profileName})";
+
+            var webCache = System.IO.Path.Combine(profileDir, "Cache", "Cache_Data");
+            if (Directory.Exists(webCache))
+                list.Add(new CacheTarget($"{browser} 網頁快取{suffix}", webCache, $"{browser} 瀏覽器暫存檔", CacheRiskLevel.Advanced, "清除後常訪問網頁圖片與靜態資源需重新下載", process));
+
+            var codeCache = System.IO.Path.Combine(profileDir, "Code Cache");
+            if (Directory.Exists(codeCache))
+                list.Add(new CacheTarget($"{browser} 程式碼快取{suffix}", codeCache, $"{browser} JS/Wasm 編譯快取", CacheRiskLevel.Advanced, "清除後網頁 JavaScript 腳本需重新編譯", process));
+        }
     }
 
     public List<CacheTarget> GetDefaultTargets()
@@ -39,11 +79,11 @@ public class CacheCleaner
         var winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         var winTemp = Path.Combine(winDir, "Temp");
         if (Directory.Exists(winTemp))
-            list.Add(new CacheTarget("Windows 系統暫存", winTemp, "系統更新與安裝殘留暫存", CacheRiskLevel.Safe));
+            list.Add(new CacheTarget("Windows 系統暫存", winTemp, "系統更新與安裝殘留暫存", CacheRiskLevel.Safe, RequiresAdmin: true));
 
         var prefetch = Path.Combine(winDir, "Prefetch");
         if (Directory.Exists(prefetch))
-            list.Add(new CacheTarget("Windows 預先讀取檔", prefetch, "系統過期預讀快取", CacheRiskLevel.Advanced, "清除後常用軟體首次啟動需重新建立預讀快取"));
+            list.Add(new CacheTarget("Windows 預先讀取檔", prefetch, "系統過期預讀快取", CacheRiskLevel.Advanced, "清除後常用軟體首次啟動需重新建立預讀快取", RequiresAdmin: true));
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -54,11 +94,11 @@ public class CacheCleaner
 
         var softDist = Path.Combine(winDir, "SoftwareDistribution", "Download");
         if (Directory.Exists(softDist))
-            list.Add(new CacheTarget("Windows Update 安裝快取", softDist, "已安裝之更新快取檔", CacheRiskLevel.Advanced, "清除後若需重新檢驗或重試更新將重新下載"));
+            list.Add(new CacheTarget("Windows Update 安裝快取", softDist, "已安裝之更新快取檔", CacheRiskLevel.Advanced, "清除後若需重新檢驗或重試更新將重新下載", RequiresAdmin: true));
 
         var deliveryOpt = Path.Combine(winDir, "SoftwareDistribution", "DeliveryOptimization");
         if (Directory.Exists(deliveryOpt))
-            list.Add(new CacheTarget("Windows 傳遞最佳化快取", deliveryOpt, "對等更新傳遞快取", CacheRiskLevel.Safe));
+            list.Add(new CacheTarget("Windows 傳遞最佳化快取", deliveryOpt, "對等更新傳遞快取", CacheRiskLevel.Safe, RequiresAdmin: true));
 
         var thumbCache = Path.Combine(localAppData, "Microsoft", "Windows", "Explorer");
         if (Directory.Exists(thumbCache))
@@ -74,25 +114,11 @@ public class CacheCleaner
 
         var winLogs = Path.Combine(winDir, "Logs");
         if (Directory.Exists(winLogs))
-            list.Add(new CacheTarget("Windows 系統記錄檔 (Logs)", winLogs, "系統維護與安裝記錄檔", CacheRiskLevel.Safe));
+            list.Add(new CacheTarget("Windows 系統記錄檔 (Logs)", winLogs, "系統維護與安裝記錄檔", CacheRiskLevel.Advanced, "清除後 CBS／DISM 等記錄消失，系統修復或疑難排解時將缺少診斷資料", RequiresAdmin: true));
 
-        // Google Chrome
-        var chromeCache = Path.Combine(localAppData, "Google", "Chrome", "User Data", "Default", "Cache", "Cache_Data");
-        if (Directory.Exists(chromeCache))
-            list.Add(new CacheTarget("Google Chrome 網頁快取", chromeCache, "Chrome 瀏覽器暫存檔", CacheRiskLevel.Advanced, "清除後常訪問網頁圖片與靜態資源需重新下載", "chrome"));
-
-        var chromeCodeCache = Path.Combine(localAppData, "Google", "Chrome", "User Data", "Default", "Code Cache");
-        if (Directory.Exists(chromeCodeCache))
-            list.Add(new CacheTarget("Google Chrome 代碼快取", chromeCodeCache, "JS/Wasm 編譯快取", CacheRiskLevel.Advanced, "清除後網頁 JavaScript 腳本需重新編譯", "chrome"));
-
-        // Microsoft Edge
-        var edgeCache = Path.Combine(localAppData, "Microsoft", "Edge", "User Data", "Default", "Cache", "Cache_Data");
-        if (Directory.Exists(edgeCache))
-            list.Add(new CacheTarget("Microsoft Edge 網頁快取", edgeCache, "Edge 瀏覽器暫存檔", CacheRiskLevel.Advanced, "清除後常訪問網頁圖片與靜態資源需重新下載", "msedge"));
-
-        var edgeCodeCache = Path.Combine(localAppData, "Microsoft", "Edge", "User Data", "Default", "Code Cache");
-        if (Directory.Exists(edgeCodeCache))
-            list.Add(new CacheTarget("Microsoft Edge 代碼快取", edgeCodeCache, "Edge JS/Wasm 快取", CacheRiskLevel.Advanced, "清除後網頁 JavaScript 腳本需重新編譯", "msedge"));
+        // Chromium 系瀏覽器：涵蓋 Default 與 Profile N 設定檔
+        AddChromiumTargets(list, Path.Combine(localAppData, "Google", "Chrome", "User Data"), "Google Chrome", "chrome");
+        AddChromiumTargets(list, Path.Combine(localAppData, "Microsoft", "Edge", "User Data"), "Microsoft Edge", "msedge");
 
         // VS Code
         var vscodeCache = Path.Combine(appData, "Code", "Cache");
@@ -125,6 +151,8 @@ public class CacheCleaner
             var approvedPaths = targets.Select(target => target.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var skippedFiles = 0;
             var errorCount = 0;
+            var elevated = _isElevated();
+            var adminSkipped = new List<string>();
 
             for (var targetIndex = 0; targetIndex < targets.Count; targetIndex++)
             {
@@ -136,6 +164,12 @@ public class CacheCleaner
 
                 if (!_safetyGuard.IsApprovedCacheTarget(target.Path, approvedPaths) || !Directory.Exists(target.Path))
                     continue;
+
+                if (target.RequiresAdmin && !elevated)
+                {
+                    adminSkipped.Add(target.Category);
+                    continue;
+                }
 
                 long size = 0;
                 int count = 0;
@@ -201,6 +235,9 @@ public class CacheCleaner
                         target.SideEffectNotice));
                 }
             }
+
+            if (adminSkipped.Count > 0)
+                issues.Insert(0, $"未掃描 {adminSkipped.Count} 項需系統管理員權限的目標（{string.Join("、", adminSkipped)}）");
 
             progress?.Report(new OperationProgress(100, "快取掃描完成"));
             return new CacheScanResult(results, skippedFiles, errorCount, false, CreateErrorSummary(issues));

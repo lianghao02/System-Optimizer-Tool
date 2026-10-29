@@ -66,6 +66,19 @@ public class MemoryOptimizer
     {
         IntPtr pCommand = IntPtr.Zero;
         LastStandbyPurgeError = null;
+
+        if (!PrivilegeHelper.IsElevated())
+        {
+            LastStandbyPurgeError = "需要系統管理員權限（目前以一般權限執行）";
+            return false;
+        }
+
+        if (!PrivilegeHelper.TryEnablePrivilege(PrivilegeHelper.ProfileSingleProcessPrivilege, out var privilegeError))
+        {
+            LastStandbyPurgeError = privilegeError;
+            return false;
+        }
+
         try
         {
             var command = NativeMethods.MemoryPurgeStandbyList;
@@ -77,6 +90,8 @@ public class MemoryOptimizer
                 pCommand,
                 sizeof(int)
             );
+            if (status != 0)
+                LastStandbyPurgeError = $"系統呼叫失敗 (NTSTATUS 0x{status:X8})";
             return status == 0;
         }
         catch (Exception ex)

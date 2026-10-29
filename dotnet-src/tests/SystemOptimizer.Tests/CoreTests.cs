@@ -12,16 +12,58 @@ namespace SystemOptimizer.Tests;
 public class CoreTests
 {
     [Fact]
-    public void SafetyGuard_BlocksRootAndSystemFolders()
+    public void SafetyGuard_BlocksRootAndSystemFoldersEvenWhenApproved()
     {
         var guard = new SafetyGuard();
         var sysDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
         var winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        Assert.False(guard.IsSafeTarget("C:\\"));
-        Assert.False(guard.IsSafeTarget(sysDir));
-        Assert.False(guard.IsSafeTarget(winDir));
-        Assert.False(guard.IsSafeTarget(Path.Combine(winDir, "Temp")));
+        foreach (var dangerous in new[] { "C:\\", sysDir, winDir, profile })
+            Assert.False(guard.IsApprovedCacheTarget(dangerous, new[] { dangerous }));
+    }
+
+    [Fact]
+    public void StartupManager_ParsesStartupApprovedFlag()
+    {
+        Assert.True(StartupManager.IsApprovedFlag(null));
+        Assert.True(StartupManager.IsApprovedFlag(new byte[] { 0x02, 0, 0, 0 }));
+        Assert.True(StartupManager.IsApprovedFlag(new byte[] { 0x06, 0, 0, 0 }));
+        Assert.False(StartupManager.IsApprovedFlag(new byte[] { 0x03, 0, 0, 0 }));
+    }
+
+    [Fact]
+    public async Task CacheCleaner_SkipsAdminTargetsWhenNotElevated()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"SystemOptimizerAdmin-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "a.tmp"), "x");
+
+        try
+        {
+            List<CacheCleaner.CacheTarget> Targets() => new() { new("需管理員", root, "測試", RequiresAdmin: true) };
+
+            var denied = await new CacheCleaner(Targets, () => false).ScanTargetsAsync();
+            Assert.Empty(denied.Items);
+            Assert.Contains("系統管理員", denied.ErrorSummary);
+
+            var allowed = await new CacheCleaner(Targets, () => true).ScanTargetsAsync();
+            Assert.Single(allowed.Items);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void MemoryOptimizer_ReportsReasonWhenStandbyPurgeUnavailable()
+    {
+        var optimizer = new MemoryOptimizer();
+        var purged = optimizer.PurgeStandbyList();
+
+        if (!purged)
+            Assert.False(string.IsNullOrWhiteSpace(optimizer.LastStandbyPurgeError));
     }
 
     [Fact]
@@ -72,7 +114,7 @@ public class CoreTests
         // 關鍵驗證：可能導致網頁/圖片變慢或著色器重編譯的項目，必須被標註為 Advanced 且帶有副作用說明
         var browserAndShaderTargets = targets.Where(t => 
             t.Category.Contains("網頁快取") || 
-            t.Category.Contains("代碼快取") || 
+            t.Category.Contains("程式碼快取") || 
             t.Category.Contains("著色器") || 
             t.Category.Contains("縮圖快取")).ToList();
 
