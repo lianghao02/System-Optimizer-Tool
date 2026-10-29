@@ -33,20 +33,16 @@
                             <TextBlock Text="⚡" FontSize="15" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <TextBlock Text="Windows 系統極速優化工具" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                        <Border Background="#EBF2FA" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text=".NET 8 Native" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
-                        </Border>
                         <Border Background="#F4F7FB" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="{Binding ApplicationVersion, StringFormat='v{0}'}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}"/>
                         </Border>
                     </StackPanel>
-                    <TextBlock Text="莫蘭迪淺色架構 ｜ 原生 Win32 零依賴 ｜ 單檔秒開" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="38,4,0,0"/>
+                    <TextBlock Text="{Binding PermissionText}" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="38,4,0,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="CheckUpdatesButton" Content="🔄 檢查更新" Click="CheckUpdates_Click" Style="{StaticResource MorandiOutlineButton}" Margin="0,0,10,0" ToolTip="透過 GitHub Release 檢查最新版本"/>
-                    <Button Content="⚡ 整理記憶體" Command="{Binding OptimizeMemoryCommand}" Style="{StaticResource MorandiButton}" Margin="0,0,10,0"/>
-                    <Button Content="🔍 掃描系統快取" Command="{Binding ScanCacheCommand}" Style="{StaticResource MorandiSuccessButton}"/>
+                    <Button Content="🛡️ 以系統管理員重新啟動" Command="{Binding RestartAsAdministratorCommand}" Visibility="{Binding ElevateButtonVisibility}" Style="{StaticResource MorandiButton}" Margin="0,0,10,0" ToolTip="重新啟動並要求 Windows 授權，以便清理系統目錄與待命快取"/>
+                    <Button x:Name="CheckUpdatesButton" Content="🔄 檢查更新" Click="CheckUpdates_Click" Style="{StaticResource MorandiOutlineButton}" ToolTip="透過 GitHub Release 檢查最新版本"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -83,7 +79,7 @@
                                     <TextBlock Text="已使用量 / 總實體容量" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <Border Grid.Column="1" Background="#EDF7F1" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
-                                    <TextBlock Text="● 即時監控中 (2秒自動刷新)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}"/>
+                                    <TextBlock Text="● 即時監控中 (每 2 秒自動更新)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}"/>
                                 </Border>
                             </Grid>
 
@@ -107,7 +103,7 @@
                             <!-- 記憶體操作按鈕群組 -->
                             <StackPanel Grid.Row="5" Orientation="Horizontal">
                                 <Button Content="⚡ 執行工作集與快取整理" Command="{Binding OptimizeMemoryCommand}" Style="{StaticResource MorandiButton}" Margin="0,0,10,0"/>
-                                <Button Content="🔄 立即刷新" Command="{Binding RefreshMemoryCommand}" Style="{StaticResource MorandiOutlineButton}"/>
+                                <Button Content="🔄 立即重新整理" Command="{Binding RefreshMemoryCommand}" Style="{StaticResource MorandiOutlineButton}"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -196,15 +192,31 @@
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
                                     <GridViewColumn Header="清理分級" Width="95" DisplayMemberBinding="{Binding RiskLevelBadge}"/>
-                                    <GridViewColumn Header="快取類別" Width="185" DisplayMemberBinding="{Binding Category}"/>
-                                    <GridViewColumn Header="佔用大小" Width="100" DisplayMemberBinding="{Binding FormattedSize}"/>
-                                    <GridViewColumn Header="檔案數" Width="70" DisplayMemberBinding="{Binding FileCount}"/>
-                                    <GridViewColumn Header="副作用與效能說明" Width="260" DisplayMemberBinding="{Binding SideEffectNotice}"/>
-                                    <GridViewColumn Header="運行鎖定狀態" Width="180" DisplayMemberBinding="{Binding StatusNote}"/>
-                                    <GridViewColumn Header="實體路徑" Width="260" DisplayMemberBinding="{Binding Path}"/>
+                                    <GridViewColumn Header="快取類別" Width="200" DisplayMemberBinding="{Binding Category}"/>
+                                    <GridViewColumn Header="佔用大小" Width="85" DisplayMemberBinding="{Binding FormattedSize}"/>
+                                    <GridViewColumn Header="檔案數" Width="65" DisplayMemberBinding="{Binding FileCount}"/>
+                                    <GridViewColumn Header="副作用與效能說明" Width="270" DisplayMemberBinding="{Binding SideEffectNotice}"/>
+                                    <GridViewColumn Header="使用中狀態" Width="140" DisplayMemberBinding="{Binding StatusNote}"/>
                                 </GridView>
                             </ListView.View>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="ToolTip" Value="{Binding Path}"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
                         </ListView>
+                        <TextBlock Grid.Row="1" Text="目前沒有項目。按下「重新掃描」檢查可清理的快取。" FontSize="13" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CacheItems.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
 
                         <Grid Grid.Row="2" Margin="0,14,0,0">
                             <Grid.ColumnDefinitions>
@@ -274,6 +286,18 @@
                                 </GridView>
                             </ListView.View>
                         </ListView>
+                        <TextBlock Grid.Row="1" Text="目前沒有結果。選好目標磁碟後按下「立即掃描大檔案」。" FontSize="13" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LargeFiles.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
 
                         <!-- 操作按鈕列 -->
                         <Grid Grid.Row="2" Margin="0,14,0,0">
@@ -289,7 +313,7 @@
             </TabItem>
 
             <!-- 分頁 4: 開機啟動管理 -->
-            <TabItem Header="開機啟動管理">
+            <TabItem Header="開機啟動項目">
                 <Border Style="{StaticResource MorandiCard}" Margin="0,4,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -298,14 +322,15 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="0,0,0,14">
-                            <TextBlock Text="Windows 開機自啟動軟體與登錄檔項目" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                            <TextBlock Text="檢視目前登記於 HKCU/HKLM Run 鍵之常駐開機程式" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                            <TextBlock Text="Windows 開機自啟動項目" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                            <TextBlock Text="唯讀檢視登記於 HKCU/HKLM Run 的開機程式；啟用狀態依工作管理員設定顯示，停用或啟用請至工作管理員的「開機應用程式」" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
 
                         <ListView Grid.Row="1" ItemsSource="{Binding StartupItems}" BorderThickness="0" Background="Transparent">
                             <ListView.View>
                                 <GridView>
                                     <GridViewColumn Header="軟體名稱" Width="200" DisplayMemberBinding="{Binding Name}"/>
+                                    <GridViewColumn Header="狀態" Width="80" DisplayMemberBinding="{Binding StatusText}"/>
                                     <GridViewColumn Header="登記位置" Width="160" DisplayMemberBinding="{Binding Location}"/>
                                     <GridViewColumn Header="啟動指令路徑" Width="480" DisplayMemberBinding="{Binding Command}"/>
                                 </GridView>
@@ -331,7 +356,7 @@
                 </StackPanel>
                 <ProgressBar Grid.Column="1" Value="{Binding OperationProgressPercentage}" Maximum="100" Height="7" Margin="12,0" VerticalAlignment="Center"/>
                 <Button Grid.Column="2" Content="取消目前工作" Command="{Binding CancelOperationCommand}" Style="{StaticResource MorandiOutlineButton}" Padding="9,4" FontSize="11" Margin="0,0,10,0"/>
-                <TextBlock Grid.Column="3" Text="v6.1.0 Native Single-File" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{Binding ApplicationVersion, StringFormat='v{0}'}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
             </Grid>
         </Border>
     </Grid>

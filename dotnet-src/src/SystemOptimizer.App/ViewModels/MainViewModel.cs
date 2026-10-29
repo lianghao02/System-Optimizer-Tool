@@ -27,7 +27,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly DispatcherTimer _monitorTimer;
     private readonly List<LargeFileInfo> _allLargeFiles = new();
 
-    private string _statusMessage = "系統就緒 (原生 .NET 8 高效能版)";
+    private string _statusMessage = "系統就緒";
     private string _memoryUsageText = "載入中...";
     private uint _memoryLoadPercentage;
     private string _availableMemoryText = "";
@@ -66,6 +66,13 @@ public class MainViewModel : INotifyPropertyChanged
         new("不限大小", 0), new("至少 100 MB", 100), new("至少 500 MB", 500), new("至少 1 GB", 1024)
     };
     public string ApplicationVersion { get; } = VersionInfoService.GetCurrentVersion();
+
+    public bool IsElevated { get; } = PrivilegeHelper.IsElevated();
+    public string PermissionText => IsElevated
+        ? "系統管理員權限 ｜ 可清理系統目錄與待命快取"
+        : "一般權限 ｜ 系統目錄與待命快取清理需要系統管理員權限";
+    public System.Windows.Visibility ElevateButtonVisibility =>
+        IsElevated ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
 
     public string StatusMessage
     {
@@ -174,9 +181,31 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ScanLargeFilesCommand { get; }
     public ICommand OpenInExplorerCommand { get; }
     public ICommand CancelOperationCommand { get; }
+    public ICommand RestartAsAdministratorCommand { get; }
+
+    private void RestartAsAdministrator()
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exePath)) return;
+
+            Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true, Verb = "runas" });
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (Win32Exception)
+        {
+            StatusMessage = "已取消系統管理員授權，維持一般權限執行。";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"無法以系統管理員重新啟動：{ex.Message}";
+        }
+    }
 
     public MainViewModel()
     {
+        RestartAsAdministratorCommand = new RelayCommand(RestartAsAdministrator);
         RefreshMemoryCommand = new RelayCommand(RefreshMemory);
         OptimizeMemoryCommand = new RelayCommand(async () => await OptimizeMemoryAsync());
         ScanCacheCommand = new RelayCommand(async () => await ScanCacheAsync());
