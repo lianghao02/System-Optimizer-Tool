@@ -1,5 +1,7 @@
 # ⚡ Windows 系統極速優化工具 (System Optimizer Tool)
 
+> **⚠️ 已停止維護（2026-10-29）**：本工具的功能已被 Windows 內建的「儲存空間感知」、工作管理員與 WizTree 等成熟工具取代，不再開發。最後版本 v6.2.3 與原始碼保留於此供參考。
+
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
 [![WPF](https://img.shields.io/badge/WPF-Windows-brightgreen.svg)](ARCHITECTURE.md)
 [![Releases](https://img.shields.io/badge/Release-v6.2.3-success.svg)](https://github.com/lianghao02/System-Optimizer-Tool/releases)
